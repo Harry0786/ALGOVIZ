@@ -1,0 +1,2 @@
+# Baseline Detekt rules
+# Run: ./gradlew detektBaseline to generate baseline.xml

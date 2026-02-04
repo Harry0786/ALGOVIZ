@@ -1,0 +1,57 @@
+detekt:
+  parallel: true
+  build-upon-default-config: true
+  config: detekt.yml
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+output-reports:
+  active: true
+  exclude:
+    - 'HtmlOutputReport'
+
+potential-bugs:
+  active: true
+
+performance:
+  active: true
+
+style:
+  active: true
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  ReturnCount:
+    active: true
+    max: 3
+
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+  ComplexMethod:
+    active: true
+    threshold: 15
+
+formatting:
+  active: true
+  android: true
+  autoCorrect: true
+  
+comments:
+  active: false
+
+exceptions:
+  active: true
+  TooGenericExceptionCaught:
+    active: false

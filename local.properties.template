@@ -1,0 +1,21 @@
+## This file must be in your local machine only
+## Copy this file to local.properties and add your values
+
+# Android SDK location
+sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+
+# Signing configurations
+RELEASE_STORE_FILE=
+RELEASE_STORE_PASSWORD=
+RELEASE_KEY_ALIAS=
+RELEASE_KEY_PASSWORD=
+
+STAGING_STORE_FILE=
+STAGING_STORE_PASSWORD=
+STAGING_KEY_ALIAS=
+STAGING_KEY_PASSWORD=
+
+# API Keys
+SUPABASE_URL=
+SUPABASE_KEY=
+SUPABASE_ANON_KEY=
