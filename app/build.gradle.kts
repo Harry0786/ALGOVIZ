@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -156,6 +157,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":domain"))
     implementation(project(":features"))
+    implementation(project(":features:auth"))
 
     // Kotlin
     implementation(libs.kotlin.stdlib)
@@ -184,6 +186,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
+    implementation(libs.play.services.auth)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.google.id.library)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")

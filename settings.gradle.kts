@@ -32,3 +32,4 @@ include(":data")
 include(":domain")
 
 include(":features")
+include(":features:auth")

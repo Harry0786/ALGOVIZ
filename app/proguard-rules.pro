@@ -57,3 +57,22 @@
 -keep class com.algoviz.plus.**.model.** { *; }
 -keep class com.algoviz.plus.**.dto.** { *; }
 -keep class com.algoviz.plus.**.entity.** { *; }
+
+# Firebase
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+# Firebase Auth
+-keep class com.google.firebase.auth.** { *; }
+-keepclassmembers class com.google.firebase.auth.** { *; }
+
+# Google Sign-In
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+-keepclassmembers class com.google.android.gms.auth.** { *; }

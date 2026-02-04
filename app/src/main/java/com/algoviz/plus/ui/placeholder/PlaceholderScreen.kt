@@ -1,23 +1,15 @@
 package com.algoviz.plus.ui.placeholder
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
+import com.algoviz.plus.ui.home.HomeScreen
 
 @Composable
-fun PlaceholderScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "AlgoViz+ Infrastructure Ready",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
+fun PlaceholderScreen(
+    authViewModel: AuthViewModel = hiltViewModel()
+) {
+    HomeScreen(
+        onLogoutClick = { authViewModel.logout() }
+    )
 }

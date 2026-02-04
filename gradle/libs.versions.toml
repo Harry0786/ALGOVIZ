@@ -42,6 +42,10 @@ timber = "5.0.1"
 
 # Firebase
 firebaseBom = "32.7.2"
+googleServices = "4.4.1"
+playServicesAuth = "21.0.0"
+credentialsPlayServicesAuth = "1.2.2"
+googleIdLibrary = "1.1.0"
 
 # Testing
 junit = "4.13.2"
@@ -114,6 +118,11 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging-ktx" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics-ktx" }
+firebase-auth = { module = "com.google.firebase:firebase-auth-ktx" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
+google-id-library = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleIdLibrary" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 # Testing
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -136,6 +145,7 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
 [bundles]
 compose = ["compose-ui", "compose-ui-graphics", "compose-ui-tooling-preview", "compose-material3", "compose-material-icons", "compose-activity"]
