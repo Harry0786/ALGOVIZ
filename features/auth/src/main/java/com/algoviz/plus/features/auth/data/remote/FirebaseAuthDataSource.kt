@@ -119,5 +119,45 @@ class FirebaseAuthDataSource @Inject constructor(
         }
     }
     
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return try {
+            Timber.d("FirebaseAuthDataSource: Sending password reset email to: $email")
+            firebaseAuth.sendPasswordResetEmail(email).await()
+            Timber.d("FirebaseAuthDataSource: Password reset email sent successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "FirebaseAuthDataSource: Password reset email error - ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            val user = firebaseAuth.currentUser ?: return Result.failure(Exception("No authenticated user"))
+            val email = user.email ?: return Result.failure(Exception("User email is null"))
+            
+            // Re-authenticate user before changing password
+            val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, currentPassword)
+            user.reauthenticate(credential).await()
+            
+            // Change password
+            user.updatePassword(newPassword).await()
+            Result.success(Unit)
+        } catch (e: FirebaseAuthInvalidCredentialsException) {
+            Timber.e(e, "Invalid current password")
+            Result.failure(Exception("Invalid current password"))
+        } catch (e: FirebaseAuthWeakPasswordException) {
+            Timber.e(e, "Weak new password")
+            Result.failure(Exception("Password is too weak"))
+        } catch (e: Exception) {
+            Timber.e(e, "Password change error")
+            Result.failure(e)
+        }
+    }
+    
+    fun getCurrentUserEmail(): String? {
+        return firebaseAuth.currentUser?.email
+    }
+    
     fun getCurrentUser(): FirebaseUser? = firebaseAuth.currentUser
 }

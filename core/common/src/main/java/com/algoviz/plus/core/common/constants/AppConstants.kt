@@ -24,4 +24,13 @@ object PreferenceKeys {
     const val KEY_USER_ID = "user_id"
     const val KEY_THEME_MODE = "theme_mode"
     const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+    
+    // User Profile
+    const val KEY_PROFILE_NAME = "profile_name"
+    const val KEY_PROFILE_EMAIL = "profile_email"
+    const val KEY_PROFILE_BIO = "profile_bio"
+    const val KEY_PROFILE_AVATAR_URL = "profile_avatar_url"
+    const val KEY_PROFILE_STUDY_GOAL = "profile_study_goal"
+    const val KEY_PROFILE_SKILL_LEVEL = "profile_skill_level"
+    const val KEY_PROFILE_AVATAR_COLOR_INDEX = "profile_avatar_color_index"
 }

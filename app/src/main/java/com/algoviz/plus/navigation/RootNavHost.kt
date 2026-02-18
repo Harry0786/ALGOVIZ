@@ -1,15 +1,34 @@
 package com.algoviz.plus.navigation
 
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -27,17 +46,17 @@ fun RootNavHost(
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    var splashFinished by remember { mutableStateOf(false) }
 
-    // Show loading screen while checking auth state
-    if (authState is AuthUiState.Idle || authState is AuthUiState.Loading) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1A1344)),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = Color(0xFF5EEAD4))
-        }
+    // Minimum 3-second splash screen display
+    LaunchedEffect(Unit) {
+        delay(3000)
+        splashFinished = true
+    }
+
+    // Show splash screen while checking auth state or during minimum display time
+    if (!splashFinished || authState is AuthUiState.Idle || authState is AuthUiState.Loading) {
+        SplashScreen()
         return
     }
 
@@ -91,6 +110,59 @@ fun RootNavHost(
 
         composable("main") {
             PlaceholderScreen(authViewModel = authViewModel)
+        }
+    }
+}
+
+@Composable
+private fun SplashScreen() {
+    val context = LocalContext.current
+    val painter = remember {
+        val drawable = ContextCompat.getDrawable(context, com.algoviz.plus.R.mipmap.ic_launcher)
+        val bitmap = (drawable as? BitmapDrawable)?.bitmap
+            ?: android.graphics.Bitmap.createBitmap(
+                drawable!!.intrinsicWidth,
+                drawable.intrinsicHeight,
+                android.graphics.Bitmap.Config.ARGB_8888
+            ).also { bmp ->
+                val canvas = android.graphics.Canvas(bmp)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+            }
+        BitmapPainter(bitmap.asImageBitmap())
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF1A1344),
+                        Color(0xFF2D1B69),
+                        Color(0xFF3D2080)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Image(
+                painter = painter,
+                contentDescription = "AlgoViz Logo",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(30.dp))
+            )
+            Text(
+                text = "AlgoViz+",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
         }
     }
 }

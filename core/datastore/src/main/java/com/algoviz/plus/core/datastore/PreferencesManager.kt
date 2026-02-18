@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.algoviz.plus.core.common.constants.AppConstants
@@ -73,6 +74,77 @@ class PreferencesManager @Inject constructor(
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[booleanPreferencesKey(PreferenceKeys.KEY_NOTIFICATIONS_ENABLED)] ?: true
+    }
+
+    // User Profile
+    suspend fun saveProfileName(name: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_NAME)] = name
+        }
+    }
+
+    val profileName: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_NAME)] ?: "AlgoViz User"
+    }
+
+    suspend fun saveProfileEmail(email: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL)] = email
+        }
+    }
+
+    val profileEmail: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL)] ?: "user@algoviz.com"
+    }
+
+    suspend fun saveProfileBio(bio: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO)] = bio
+        }
+    }
+
+    val profileBio: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO)] ?: "Learning algorithms and data structures"
+    }
+
+    suspend fun saveProfileAvatarUrl(avatarUrl: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL)] = avatarUrl
+        }
+    }
+
+    val profileAvatarUrl: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL)] ?: ""
+    }
+
+    suspend fun saveProfileStudyGoal(studyGoal: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL)] = studyGoal
+        }
+    }
+
+    val profileStudyGoal: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL)] ?: "Master algorithms"
+    }
+
+    suspend fun saveProfileSkillLevel(skillLevel: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL)] = skillLevel
+        }
+    }
+
+    val profileSkillLevel: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL)] ?: "Beginner"
+    }
+
+    suspend fun saveProfileAvatarColorIndex(colorIndex: Int) {
+        dataStore.edit { preferences ->
+            preferences[intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX)] = colorIndex
+        }
+    }
+
+    val profileAvatarColorIndex: Flow<Int> = dataStore.data.map { preferences ->
+        preferences[intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX)] ?: 0
     }
 
     // Clear all preferences

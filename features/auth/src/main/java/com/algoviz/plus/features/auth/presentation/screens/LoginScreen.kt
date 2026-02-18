@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import android.widget.Toast
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -74,6 +77,7 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -92,9 +96,21 @@ fun LoginScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Error) {
-            snackbarHostState.showSnackbar((uiState as AuthUiState.Error).message)
-            viewModel.clearError()
+        when (uiState) {
+            is AuthUiState.Error -> {
+                val message = (uiState as AuthUiState.Error).message
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                snackbarHostState.showSnackbar(message)
+                viewModel.clearError()
+            }
+            is AuthUiState.PasswordResetEmailSent -> {
+                val message = "Password reset email sent! Check your inbox."
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                snackbarHostState.showSnackbar(message)
+                showForgotPasswordDialog = false
+                viewModel.clearError()
+            }
+            else -> {}
         }
     }
 
@@ -178,7 +194,22 @@ fun LoginScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                TextButton(onClick = { showForgotPasswordDialog = true }) {
+                    Text(
+                        text = "Forgot Password?",
+                        color = Color(0xFF5EEAD4),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             PrimaryButton(
                 text = "Sign In",
@@ -236,4 +267,98 @@ fun LoginScreen(
             }
         }
     }
+    
+    if (showForgotPasswordDialog) {
+        ForgotPasswordDialog(
+            onDismiss = { showForgotPasswordDialog = false },
+            onSendResetEmail = { resetEmail ->
+                Timber.d("LoginScreen: Forgot password clicked with email: $resetEmail")
+                viewModel.sendPasswordResetEmail(resetEmail)
+            },
+            isLoading = uiState is AuthUiState.Loading
+        )
+    }
 }
+
+@Composable
+private fun ForgotPasswordDialog(
+    onDismiss: () -> Unit,
+    onSendResetEmail: (String) -> Unit,
+    isLoading: Boolean
+) {
+    var resetEmail by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Reset Password",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Enter your email address and we'll send you a link to reset your password.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                EmailTextField(
+                    value = resetEmail,
+                    onValueChange = { 
+                        resetEmail = it
+                        errorMessage = null
+                    },
+                    imeAction = ImeAction.Done
+                )
+                
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            PrimaryButton(
+                text = "Send Reset Email",
+                onClick = {
+                    when {
+                        resetEmail.isBlank() -> {
+                            errorMessage = "Please enter your email address"
+                        }
+                        !android.util.Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches() -> {
+                            errorMessage = "Please enter a valid email address"
+                        }
+                        else -> {
+                            errorMessage = null
+                            onSendResetEmail(resetEmail)
+                        }
+                    }
+                },
+                enabled = !isLoading,
+                isLoading = isLoading,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text(
+                    text = "Cancel",
+                    color = Color(0xFF5EEAD4)
+                )
+            }
+        },
+        containerColor = Color(0xFF1A1344),
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+

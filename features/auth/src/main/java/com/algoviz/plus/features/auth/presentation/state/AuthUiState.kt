@@ -8,4 +8,6 @@ sealed class AuthUiState {
     data class Authenticated(val user: User) : AuthUiState()
     data object Unauthenticated : AuthUiState()
     data class Error(val message: String) : AuthUiState()
+    data object PasswordResetEmailSent : AuthUiState()
+    data object PasswordChanged : AuthUiState()
 }

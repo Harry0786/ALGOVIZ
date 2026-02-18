@@ -177,10 +177,14 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    kspAndroidTest(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     // Logging
     implementation(libs.timber)
+    
+    // Image Loading
+    implementation(libs.coil)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -200,4 +204,9 @@ dependencies {
     androidTestImplementation(libs.bundles.android.testing)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+}
+
+// Workaround for Android Studio Hilt issues
+hilt {
+    enableAggregatingTask = true
 }

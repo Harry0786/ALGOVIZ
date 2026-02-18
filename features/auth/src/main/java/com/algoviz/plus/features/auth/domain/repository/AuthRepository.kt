@@ -20,4 +20,10 @@ interface AuthRepository {
     suspend fun logout(): Result<Unit>
     
     fun getCurrentUser(): User?
+    
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+    
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit>
+    
+    fun getCurrentUserEmail(): String?
 }

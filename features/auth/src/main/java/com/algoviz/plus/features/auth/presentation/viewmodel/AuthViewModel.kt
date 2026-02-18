@@ -2,11 +2,15 @@ package com.algoviz.plus.features.auth.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.algoviz.plus.core.datastore.PreferencesManager
+import com.algoviz.plus.features.auth.domain.usecase.ChangePasswordUseCase
+import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserEmailUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GoogleSignInUseCase
 import com.algoviz.plus.features.auth.domain.usecase.LoginUseCase
 import com.algoviz.plus.features.auth.domain.usecase.LogoutUseCase
 import com.algoviz.plus.features.auth.domain.usecase.RegisterUseCase
+import com.algoviz.plus.features.auth.domain.usecase.SendPasswordResetEmailUseCase
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +26,11 @@ class AuthViewModel @Inject constructor(
     private val registerUseCase: RegisterUseCase,
     private val googleSignInUseCase: GoogleSignInUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val logoutUseCase: LogoutUseCase,
+    private val sendPasswordResetEmailUseCase: SendPasswordResetEmailUseCase,
+    private val changePasswordUseCase: ChangePasswordUseCase,
+    private val getCurrentUserEmailUseCase: GetCurrentUserEmailUseCase,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -48,6 +56,10 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             loginUseCase(email, password)
                 .onSuccess { user ->
+                    // Save email to DataStore
+                    user.email?.let { userEmail ->
+                        preferencesManager.saveProfileEmail(userEmail)
+                    }
                     _uiState.value = AuthUiState.Authenticated(user)
                 }
                 .onFailure { error ->
@@ -67,6 +79,10 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             registerUseCase(email, password)
                 .onSuccess { user ->
+                    // Save email to DataStore
+                    user.email?.let { userEmail ->
+                        preferencesManager.saveProfileEmail(userEmail)
+                    }
                     _uiState.value = AuthUiState.Authenticated(user)
                 }
                 .onFailure { error ->
@@ -81,6 +97,10 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             googleSignInUseCase(idToken)
                 .onSuccess { user ->
+                    // Save email to DataStore
+                    user.email?.let { userEmail ->
+                        preferencesManager.saveProfileEmail(userEmail)
+                    }
                     _uiState.value = AuthUiState.Authenticated(user)
                 }
                 .onFailure { error ->
@@ -103,8 +123,41 @@ class AuthViewModel @Inject constructor(
     }
     
     fun clearError() {
-        if (_uiState.value is AuthUiState.Error) {
+        if (_uiState.value is AuthUiState.Error ||
+            _uiState.value is AuthUiState.PasswordResetEmailSent ||
+            _uiState.value is AuthUiState.PasswordChanged) {
             _uiState.value = AuthUiState.Idle
+        }
+    }
+    
+    fun sendPasswordResetEmail(email: String) {
+        Timber.d("Sending password reset email to: $email")
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            Timber.d("State set to Loading")
+            sendPasswordResetEmailUseCase(email)
+                .onSuccess {
+                    Timber.d("Password reset email sent successfully")
+                    _uiState.value = AuthUiState.PasswordResetEmailSent
+                }
+                .onFailure { error ->
+                    Timber.e(error, "Password reset email failed")
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to send password reset email")
+                }
+        }
+    }
+    
+    fun changePassword(currentPassword: String, newPassword: String) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            changePasswordUseCase(currentPassword, newPassword)
+                .onSuccess {
+                    _uiState.value = AuthUiState.PasswordChanged
+                }
+                .onFailure { error ->
+                    Timber.e(error, "Password change failed")
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to change password")
+                }
         }
     }
 }

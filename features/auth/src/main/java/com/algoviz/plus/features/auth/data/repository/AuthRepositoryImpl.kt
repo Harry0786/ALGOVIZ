@@ -8,6 +8,7 @@ import com.algoviz.plus.features.auth.domain.model.User
 import com.algoviz.plus.features.auth.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -88,6 +89,36 @@ class AuthRepositoryImpl @Inject constructor(
     
     override fun getCurrentUser(): User? {
         return AuthMapper.mapFirebaseUserToDomainOrNull(dataSource.getCurrentUser())
+    }
+    
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        Timber.d("AuthRepository: Validating email: $email")
+        if (!isValidEmail(email)) {
+            Timber.e("AuthRepository: Invalid email format")
+            return Result.failure(Exception(AuthError.InvalidEmail().message))
+        }
+        
+        Timber.d("AuthRepository: Email validated, calling data source")
+        return dataSource.sendPasswordResetEmail(email)
+            .recoverCatching { exception ->
+                Timber.e(exception, "AuthRepository: Error from data source")
+                throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
+            }
+    }
+    
+    override suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        if (!isValidPassword(newPassword)) {
+            return Result.failure(Exception(AuthError.WeakPassword().message))
+        }
+        
+        return dataSource.changePassword(currentPassword, newPassword)
+            .recoverCatching { exception ->
+                throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
+            }
+    }
+    
+    override fun getCurrentUserEmail(): String? {
+        return dataSource.getCurrentUserEmail()
     }
     
     private fun isValidEmail(email: String): Boolean {
