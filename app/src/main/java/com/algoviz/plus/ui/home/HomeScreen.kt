@@ -63,6 +63,7 @@ import java.io.File
 fun HomeScreen(
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onVisualize: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -289,7 +290,7 @@ fun HomeScreen(
                         title = "Visualize",
                         subtitle = "Algorithms",
                         gradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2)),
-                        onClick = { /* Navigate */ }
+                        onClick = onVisualize
                     )
                     QuickActionCard(
                         modifier = Modifier.weight(1f),
