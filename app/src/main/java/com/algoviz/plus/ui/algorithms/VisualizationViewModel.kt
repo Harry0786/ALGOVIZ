@@ -151,6 +151,11 @@ class VisualizationViewModel @Inject constructor(
         )
     }
     
+    fun getCurrentStepData(): AlgorithmStep? {
+        val currentStep = _visualizationState.value.currentStep
+        return if (currentStep < allSteps.size) allSteps[currentStep] else null
+    }
+    
     override fun onCleared() {
         super.onCleared()
         playbackJob?.cancel()
