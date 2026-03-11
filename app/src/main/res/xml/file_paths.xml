@@ -4,4 +4,5 @@
     <cache-path name="apk_files" path="apk/" />
     <external-path name="external_files" path="." />
     <files-path name="internal_files" path="." />
+    <external-files-path name="app_external_files" path="." />
 </paths>

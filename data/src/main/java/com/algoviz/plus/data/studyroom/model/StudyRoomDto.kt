@@ -8,6 +8,8 @@ data class StudyRoomDto(
     val createdBy: String = "",
     val createdAt: Long = 0L,
     val memberCount: Int = 0,
+    val maxMembers: Int = 50,
+    val isPrivate: Boolean = false,
     val lastMessageAt: Long? = null,
     val lastMessage: String? = null,
     val isActive: Boolean = true

@@ -80,3 +80,53 @@ Feature modules ready for implementation:
 ---
 
 **Status**: Infrastructure Complete | Week 1 + Week 2 Foundation Ready
+
+## Automatic In-App Update Pipeline (No Play Store)
+
+This repository now includes a CI workflow at `.github/workflows/release-update.yml`.
+
+What it does:
+- Builds signed release APK
+- Uploads APK to Firebase Storage
+- Updates Firestore document `app_config/latest_version`
+- Existing app installations detect the new version and prompt users to update
+
+### Required GitHub Secrets
+
+Add these in repository settings: `Settings > Secrets and variables > Actions`.
+
+- `ANDROID_KEYSTORE_BASE64`: Base64-encoded release keystore file
+- `ANDROID_STORE_PASSWORD`: Keystore password
+- `ANDROID_KEY_ALIAS`: Signing key alias
+- `ANDROID_KEY_PASSWORD`: Signing key password
+- `FIREBASE_SERVICE_ACCOUNT_JSON`: Full Firebase service account JSON (single-line string)
+- `FIREBASE_PROJECT_ID`: Firebase project id (example: `algoviz-plus`)
+- `FIREBASE_STORAGE_BUCKET`: Firebase storage bucket (example: `algoviz-plus.firebasestorage.app`)
+
+### Triggering Releases
+
+- Tag push: `git tag v1.2.0 && git push origin v1.2.0`
+- Manual run: GitHub `Actions` tab -> `Build and Publish Android Update` -> `Run workflow`
+
+### Important
+
+- Increase `versionCode` in `app/build.gradle.kts` for every release.
+- Keep using the same signing key, otherwise update install will fail.
+
+### Fast Setup Helper (Local)
+
+Generate the two long secret values using:
+
+```powershell
+pwsh ./scripts/release/generate-ci-secrets.ps1 \
+  -KeystorePath "C:\path\to\release.jks" \
+  -ServiceAccountJsonPath "C:\path\to\firebase-service-account.json"
+```
+
+### Final Activation Checklist
+
+1. Add all required GitHub Secrets.
+2. Ensure `versionCode` is incremented in `app/build.gradle.kts`.
+3. Push a tag (example: `v1.1.0`) to trigger release automation.
+4. Confirm workflow success in GitHub Actions.
+5. Open installed app on test device and verify update prompt appears.

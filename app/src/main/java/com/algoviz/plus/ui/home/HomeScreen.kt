@@ -65,6 +65,7 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onVisualize: () -> Unit = {},
     onStudyRooms: () -> Unit = {},
+    onAdminUpdate: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -317,11 +318,11 @@ fun HomeScreen(
                     )
                     QuickActionCard(
                         modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.TrendingUp,
-                        title = "Track",
-                        subtitle = "Progress",
+                        icon = Icons.Outlined.SystemUpdate,
+                        title = "App Update",
+                        subtitle = "Admin",
                         gradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
-                        onClick = { /* Navigate */ }
+                        onClick = onAdminUpdate
                     )
                 }
             }

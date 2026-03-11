@@ -18,8 +18,8 @@ android {
         applicationId = "com.algoviz.plus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -192,6 +192,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.storage)
+    implementation(libs.firebase.firestore)
     implementation(libs.play.services.auth)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.google.id.library)

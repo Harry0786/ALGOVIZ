@@ -41,6 +41,7 @@ import com.algoviz.plus.features.auth.presentation.navigation.authNavGraph
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
 import com.algoviz.plus.ui.placeholder.PlaceholderScreen
+import com.algoviz.plus.update.AppUpdateDialog
 
 @Composable
 fun RootNavHost(
@@ -119,7 +120,10 @@ fun RootNavHost(
             )
         }
     }
-}
+
+        // Overlay: show update dialog if a newer version is available
+        AppUpdateDialog()
+    }
 
 @Composable
 private fun SplashScreen() {

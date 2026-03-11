@@ -19,6 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,12 +56,16 @@ fun ChatRoomScreen(
     val messageInput by viewModel.messageInput.collectAsStateWithLifecycle()
     val sendMessageError by viewModel.sendMessageError.collectAsStateWithLifecycle()
     val isSending by viewModel.isSending.collectAsStateWithLifecycle()
+    val isDeletingRoom by viewModel.isDeletingRoom.collectAsStateWithLifecycle()
+    val deleteRoomError by viewModel.deleteRoomError.collectAsStateWithLifecycle()
+    val roomDeleted by viewModel.roomDeleted.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showMemberList by remember { mutableStateOf(false) }
     var showCodeSnippetDialog by remember { mutableStateOf(false) }
+    var showDeleteGroupConfirm by remember { mutableStateOf(false) }
     
     // Track message count to only scroll on new messages, not on every state change
     var lastMessageCount by remember { mutableStateOf(0) }
@@ -71,6 +77,23 @@ fun ChatRoomScreen(
         sendMessageError?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.clearSendMessageError()
+        }
+    }
+
+    LaunchedEffect(deleteRoomError) {
+        deleteRoomError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearDeleteRoomError()
+        }
+    }
+
+    LaunchedEffect(roomDeleted) {
+        if (roomDeleted) {
+            showMemberList = false
+            showDeleteGroupConfirm = false
+            snackbarHostState.showSnackbar("Group deleted")
+            viewModel.clearRoomDeletedEvent()
+            onBackClick()
         }
     }
     
@@ -136,7 +159,7 @@ fun ChatRoomScreen(
                         },
                         navigationIcon = {
                             IconButton(onClick = onBackClick) {
-                                Icon(Icons.Default.ArrowBack, "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                             }
                         },
                         actions = {
@@ -158,7 +181,7 @@ fun ChatRoomScreen(
                         title = { Text("Chat Room") },
                         navigationIcon = {
                             IconButton(onClick = onBackClick) {
-                                Icon(Icons.Default.ArrowBack, "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -274,6 +297,9 @@ fun ChatRoomScreen(
                         
                         // Message input
                         MessageInputBar(
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .imePadding(),
                             value = messageInput,
                             onValueChange = { viewModel.updateMessageInput(it) },
                             onSend = { viewModel.sendMessage() },
@@ -393,7 +419,16 @@ fun ChatRoomScreen(
                         RoomInfoItem(
                             icon = Icons.Default.Info,
                             label = "Room Settings",
-                            value = "Category: ${successState.room.category}"
+                            value = "Category: ${successState.room.category.displayName}"
+                        )
+                        RoomInfoItem(
+                            icon = Icons.Default.AdminPanelSettings,
+                            label = "Creator",
+                            value = if (successState.room.createdBy == successState.currentUserId) {
+                                "You"
+                            } else {
+                                successState.room.createdBy
+                            }
                         )
                         RoomInfoItem(
                             icon = Icons.Default.Group,
@@ -405,6 +440,38 @@ fun ChatRoomScreen(
                             label = "Created",
                             value = formatMessageTime(successState.room.createdAt)
                         )
+                    }
+
+                    if (successState.room.createdBy == successState.currentUserId) {
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                        Text(
+                            text = "Group Actions",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Button(
+                            onClick = { showDeleteGroupConfirm = true },
+                            enabled = !isDeletingRoom,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFDC2626),
+                                contentColor = Color.White,
+                                disabledContainerColor = Color(0xFF7F1D1D),
+                                disabledContentColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isDeletingRoom) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(if (isDeletingRoom) "Deleting Group..." else "Delete Group")
+                        }
                     }
                     
                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
@@ -482,6 +549,42 @@ fun ChatRoomScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteGroupConfirm) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isDeletingRoom) {
+                    showDeleteGroupConfirm = false
+                }
+            },
+            title = { Text("Delete Group") },
+            text = {
+                Text(
+                    "This will remove the group for all members and send a final system message notification. This action cannot be undone."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.deleteRoom() },
+                    enabled = !isDeletingRoom,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(if (isDeletingRoom) "Deleting..." else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteGroupConfirm = false },
+                    enabled = !isDeletingRoom
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
     
     // Code Snippet Dialog
@@ -686,7 +789,9 @@ fun MessageBubble(
                     } else {
                         Text(
                             text = message.content,
-                            color = if (isOwnMessage) Color.White else Color.White.copy(alpha = 0.95f),
+                            color = if (message.type == MessageType.SYSTEM) Color(0xFFFDE68A)
+                            else if (isOwnMessage) Color.White
+                            else Color.White.copy(alpha = 0.95f),
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 13.sp,
                             lineHeight = 19.sp
@@ -863,6 +968,7 @@ private fun detectProgrammingLanguage(code: String): String {
 
 @Composable
 fun MessageInputBar(
+    modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -870,7 +976,7 @@ fun MessageInputBar(
     isSending: Boolean
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .shadow(8.dp),
         color = Color(0xFF1A1344),
@@ -945,7 +1051,7 @@ fun MessageInputBar(
                     )
                 } else {
                     Icon(
-                        Icons.Default.Send,
+                        Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
                         modifier = Modifier.size(20.dp)
                     )

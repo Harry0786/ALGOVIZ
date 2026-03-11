@@ -155,7 +155,7 @@ class StudyRoomsViewModel @Inject constructor(
             is StudyRoomAction.FilterByCategory -> filterByCategory(action.category)
             is StudyRoomAction.SearchRooms -> searchRooms(action.query)
             is StudyRoomAction.LeaveRoom -> leaveRoom(action.roomId)
-            is StudyRoomAction.CreateRoom -> createRoom(action.name, action.description, action.category)
+            is StudyRoomAction.CreateRoom -> createRoom(action.name, action.description, action.category, action.maxMembers, action.isPrivate)
         }
     }
     
@@ -219,7 +219,7 @@ class StudyRoomsViewModel @Inject constructor(
         _searchQuery.value = query
     }
     
-    private fun createRoom(name: String, description: String, category: String) {
+    private fun createRoom(name: String, description: String, category: String, maxMembers: Int = 50, isPrivate: Boolean = false) {
         viewModelScope.launch {
             try {
                 _createRoomEvent.value = CreateRoomEvent.Loading
@@ -237,7 +237,9 @@ class StudyRoomsViewModel @Inject constructor(
                         description = description,
                         category = category,
                         createdBy = user.id,
-                        creatorName = creatorName
+                        creatorName = creatorName,
+                        maxMembers = maxMembers,
+                        isPrivate = isPrivate
                     )
                 }
                 

@@ -3,6 +3,7 @@ package com.algoviz.plus.ui.studyrooms.chat.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.algoviz.plus.domain.usecase.DeleteRoomUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMembersUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMessagesUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
@@ -21,6 +22,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChatRoomViewModel @Inject constructor(
+    private val deleteRoomUseCase: DeleteRoomUseCase,
     private val getStudyRoomsUseCase: GetStudyRoomsUseCase,
     private val getRoomMessagesUseCase: GetRoomMessagesUseCase,
     private val getRoomMembersUseCase: GetRoomMembersUseCase,
@@ -42,6 +44,15 @@ class ChatRoomViewModel @Inject constructor(
 
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
+
+    private val _isDeletingRoom = MutableStateFlow(false)
+    val isDeletingRoom: StateFlow<Boolean> = _isDeletingRoom.asStateFlow()
+
+    private val _deleteRoomError = MutableStateFlow<String?>(null)
+    val deleteRoomError: StateFlow<String?> = _deleteRoomError.asStateFlow()
+
+    private val _roomDeleted = MutableStateFlow(false)
+    val roomDeleted: StateFlow<Boolean> = _roomDeleted.asStateFlow()
     
     init {
         loadChatRoom()
@@ -90,6 +101,12 @@ class ChatRoomViewModel @Inject constructor(
     
     fun sendMessage(type: String = "TEXT", contentOverride: String? = null) {
         if (_isSending.value) return
+
+        val activeState = _uiState.value as? ChatRoomUiState.Success
+        if (activeState != null && !activeState.room.isActive) {
+            _sendMessageError.value = "This group has been deleted. You can no longer send messages."
+            return
+        }
 
         val text = (contentOverride ?: _messageInput.value).trim()
         if (text.isEmpty()) {
@@ -143,5 +160,57 @@ class ChatRoomViewModel @Inject constructor(
     fun retryLoadChatRoom() {
         _uiState.value = ChatRoomUiState.Loading
         loadChatRoom()
+    }
+
+    fun deleteRoom() {
+        if (_isDeletingRoom.value) return
+
+        val state = _uiState.value as? ChatRoomUiState.Success
+        if (state == null) {
+            _deleteRoomError.value = "Room state unavailable"
+            return
+        }
+
+        if (state.currentUserId != state.room.createdBy) {
+            _deleteRoomError.value = "Only the group creator can delete this group"
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _isDeletingRoom.value = true
+
+                val user = getCurrentUserUseCase().firstOrNull()
+                if (user == null) {
+                    _deleteRoomError.value = "User not authenticated"
+                    return@launch
+                }
+
+                val requesterName = user.email.substringBefore("@")
+                val result = deleteRoomUseCase(
+                    roomId = roomId,
+                    requesterId = user.id,
+                    requesterName = requesterName
+                )
+
+                result.onSuccess {
+                    _roomDeleted.value = true
+                }.onFailure { error ->
+                    _deleteRoomError.value = error.message ?: "Failed to delete group"
+                }
+            } catch (e: Exception) {
+                _deleteRoomError.value = e.message ?: "Failed to delete group"
+            } finally {
+                _isDeletingRoom.value = false
+            }
+        }
+    }
+
+    fun clearDeleteRoomError() {
+        _deleteRoomError.value = null
+    }
+
+    fun clearRoomDeletedEvent() {
+        _roomDeleted.value = false
     }
 }

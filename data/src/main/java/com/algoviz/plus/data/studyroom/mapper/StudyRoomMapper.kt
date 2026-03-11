@@ -23,6 +23,8 @@ object StudyRoomMapper {
             createdBy = dto.createdBy,
             createdAt = dto.createdAt,
             memberCount = dto.memberCount,
+            maxMembers = dto.maxMembers,
+            isPrivate = dto.isPrivate,
             lastMessageAt = dto.lastMessageAt,
             lastMessage = dto.lastMessage,
             isActive = dto.isActive
@@ -38,6 +40,8 @@ object StudyRoomMapper {
             createdBy = studyRoom.createdBy,
             createdAt = studyRoom.createdAt,
             memberCount = studyRoom.memberCount,
+            maxMembers = studyRoom.maxMembers,
+            isPrivate = studyRoom.isPrivate,
             lastMessageAt = studyRoom.lastMessageAt,
             lastMessage = studyRoom.lastMessage,
             isActive = studyRoom.isActive

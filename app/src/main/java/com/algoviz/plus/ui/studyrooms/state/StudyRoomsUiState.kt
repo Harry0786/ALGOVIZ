@@ -25,7 +25,9 @@ sealed class StudyRoomAction {
     data class CreateRoom(
         val name: String,
         val description: String,
-        val category: String
+        val category: String,
+        val maxMembers: Int = 50,
+        val isPrivate: Boolean = false
     ) : StudyRoomAction()
     data class FilterByCategory(val category: String?) : StudyRoomAction()
     data class SearchRooms(val query: String) : StudyRoomAction()

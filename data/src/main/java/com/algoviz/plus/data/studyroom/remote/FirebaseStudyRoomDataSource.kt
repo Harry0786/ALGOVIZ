@@ -142,6 +142,8 @@ class FirebaseStudyRoomDataSource @Inject constructor(
                 "createdBy" to roomWithId.createdBy,
                 "createdAt" to roomWithId.createdAt,
                 "memberCount" to roomWithId.memberCount,
+                "maxMembers" to roomWithId.maxMembers,
+                "isPrivate" to roomWithId.isPrivate,
                 "isActive" to roomWithId.isActive,
                 "lastMessageAt" to roomWithId.lastMessageAt,
                 "lastMessage" to roomWithId.lastMessage
@@ -219,6 +221,49 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             // Log error but don't fail the leave operation since member is already removed
             // The count might be slightly off but will be corrected on next operation
         }
+    }
+
+    suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit> = runCatching {
+        val roomRef = firestore.collection(ROOMS_COLLECTION).document(roomId)
+        val roomSnapshot = roomRef.get().await()
+
+        if (!roomSnapshot.exists()) {
+            throw IllegalStateException("Group not found")
+        }
+
+        val createdBy = roomSnapshot.getString("createdBy")
+        if (createdBy != requesterId) {
+            throw IllegalStateException("Only the group creator can delete this group")
+        }
+
+        // WhatsApp-style notice: create a system message visible to current members.
+        val messageRef = roomRef.collection(MESSAGES_COLLECTION).document()
+        val now = System.currentTimeMillis()
+        val systemContent = "This group was deleted by $requesterName"
+        val systemMessage = MessageDto(
+            id = messageRef.id,
+            roomId = roomId,
+            userId = requesterId,
+            userName = "System",
+            content = systemContent,
+            type = "SYSTEM",
+            timestamp = now
+        )
+        messageRef.set(systemMessage).await()
+
+        val membersSnapshot = roomRef.collection(MEMBERS_COLLECTION).get().await()
+        membersSnapshot.documents.forEach { memberDoc ->
+            memberDoc.reference.delete().await()
+        }
+
+        roomRef.update(
+            mapOf(
+                "isActive" to false,
+                "memberCount" to 0,
+                "lastMessage" to systemContent,
+                "lastMessageAt" to now
+            )
+        ).await()
     }
     
     // Message operations

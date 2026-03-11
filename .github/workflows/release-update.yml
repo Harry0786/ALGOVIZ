@@ -1,0 +1,149 @@
+name: Build and Publish Android Update
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      forceUpdate:
+        description: "Force update for users"
+        required: false
+        default: false
+        type: boolean
+      releaseNotes:
+        description: "Release notes shown in in-app updater"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  publish-update:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tagged commit is on master
+        shell: pwsh
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch origin master --depth=1
+          $tagSha = (git rev-list -n 1 "$env:GITHUB_REF_NAME").Trim()
+          $isOnMaster = (git branch -r --contains $tagSha | Select-String "origin/master")
+          if (-not $isOnMaster) {
+            throw "Tag $env:GITHUB_REF_NAME is not on origin/master. Release is blocked by branch policy."
+          }
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Decode Android signing keystore
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path keystore -Force | Out-Null
+          $bytes = [System.Convert]::FromBase64String("${{ secrets.ANDROID_KEYSTORE_BASE64 }}")
+          [System.IO.File]::WriteAllBytes("keystore/release.jks", $bytes)
+
+      - name: Create local.properties for CI signing
+        shell: pwsh
+        run: |
+          $sdkDir = $env:ANDROID_SDK_ROOT
+          if ([string]::IsNullOrWhiteSpace($sdkDir)) {
+            $sdkDir = $env:ANDROID_HOME
+          }
+          if ([string]::IsNullOrWhiteSpace($sdkDir)) {
+            throw "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
+          }
+
+          $escapedSdk = $sdkDir.Replace('\\', '\\\\')
+          @"
+          sdk.dir=$escapedSdk
+          RELEASE_STORE_FILE=../keystore/release.jks
+          RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          "@ | Set-Content local.properties
+
+      - name: Build release APK
+        shell: pwsh
+        run: .\gradlew.bat :app:assembleRelease --no-daemon
+
+      - name: Resolve release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $gradleText = Get-Content app/build.gradle.kts -Raw
+
+          $versionCodeMatch = [regex]::Match($gradleText, 'versionCode\s*=\s*(\d+)')
+          if (-not $versionCodeMatch.Success) {
+            throw "Unable to parse versionCode from app/build.gradle.kts"
+          }
+          $versionCode = $versionCodeMatch.Groups[1].Value
+
+          $versionNameMatch = [regex]::Match($gradleText, 'versionName\s*=\s*"([^"]+)"')
+          if (-not $versionNameMatch.Success) {
+            throw "Unable to parse versionName from app/build.gradle.kts"
+          }
+          $versionNameFromGradle = $versionNameMatch.Groups[1].Value
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME.StartsWith('v')) {
+            $versionName = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $versionName = $versionNameFromGradle
+          }
+
+          $releaseNotesInput = "${{ github.event.inputs.releaseNotes }}"
+          if ([string]::IsNullOrWhiteSpace($releaseNotesInput)) {
+            $releaseNotes = "Automated release $versionName"
+          } else {
+            $releaseNotes = $releaseNotesInput
+          }
+
+          $forceUpdateInput = "${{ github.event.inputs.forceUpdate }}"
+          if ($forceUpdateInput -eq 'true') {
+            $forceUpdate = 'true'
+          } else {
+            $forceUpdate = 'false'
+          }
+
+          "version_code=$versionCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "version_name=$versionName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "release_notes=$releaseNotes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "force_update=$forceUpdate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Install publish dependencies
+        shell: pwsh
+        run: npm install firebase-admin@12 --no-save
+
+      - name: Publish APK and Firestore metadata
+        shell: pwsh
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          APK_PATH: app/build/outputs/apk/release/app-release.apk
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          RELEASE_NOTES: ${{ steps.meta.outputs.release_notes }}
+          FORCE_UPDATE: ${{ steps.meta.outputs.force_update }}
+        run: node scripts/release/publish-update.mjs
+
+      - name: Upload built APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: algoviz-release-apk
+          path: app/build/outputs/apk/release/app-release.apk

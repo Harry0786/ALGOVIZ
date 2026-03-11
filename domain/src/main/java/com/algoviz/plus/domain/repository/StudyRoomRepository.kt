@@ -17,10 +17,13 @@ interface StudyRoomRepository {
         description: String,
         category: String,
         createdBy: String,
-        creatorName: String
+        creatorName: String,
+        maxMembers: Int = 50,
+        isPrivate: Boolean = false
     ): Result<String>
     suspend fun joinRoom(roomId: String, userId: String, userName: String): Result<Unit>
     suspend fun leaveRoom(roomId: String, userId: String): Result<Unit>
+    suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit>
     
     // Message operations
     fun getRoomMessages(roomId: String, limit: Int = 50): Flow<List<Message>>

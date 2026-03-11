@@ -48,13 +48,17 @@ class StudyRoomRepositoryImpl @Inject constructor(
         description: String,
         category: String,
         createdBy: String,
-        creatorName: String
+        creatorName: String,
+        maxMembers: Int,
+        isPrivate: Boolean
     ): Result<String> {
         val roomDto = StudyRoomDto(
             name = name,
             description = description,
             category = category,
             createdBy = createdBy,
+            maxMembers = maxMembers,
+            isPrivate = isPrivate,
             isActive = true,
             memberCount = 0
         )
@@ -67,6 +71,10 @@ class StudyRoomRepositoryImpl @Inject constructor(
     
     override suspend fun leaveRoom(roomId: String, userId: String): Result<Unit> {
         return dataSource.leaveRoom(roomId, userId)
+    }
+
+    override suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit> {
+        return dataSource.deleteRoom(roomId, requesterId, requesterName)
     }
     
     override fun getRoomMessages(roomId: String, limit: Int): Flow<List<Message>> {

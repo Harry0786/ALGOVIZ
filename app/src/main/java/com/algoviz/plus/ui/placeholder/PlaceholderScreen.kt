@@ -12,8 +12,10 @@ import com.algoviz.plus.ui.algorithms.AlgorithmListScreen
 import com.algoviz.plus.ui.algorithms.AlgorithmVisualizationScreen
 import com.algoviz.plus.ui.home.HomeScreen
 import com.algoviz.plus.ui.profile.ProfileEditScreen
+import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
 import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
 import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
+import com.algoviz.plus.ui.update.AdminAppUpdateScreen
 
 @Composable
 fun PlaceholderScreen(
@@ -31,7 +33,14 @@ fun PlaceholderScreen(
                 onLogoutClick = { authViewModel.logout() },
                 onProfileClick = { navController.navigate("profile_edit") },
                 onVisualize = { navController.navigate("algorithms") },
-                onStudyRooms = { navController.navigate("study_rooms") }
+                onStudyRooms = { navController.navigate("study_rooms") },
+                onAdminUpdate = { navController.navigate("admin_app_update") }
+            )
+        }
+
+        composable("admin_app_update") {
+            AdminAppUpdateScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         
@@ -64,7 +73,17 @@ fun PlaceholderScreen(
                 onRoomClick = { roomId ->
                     navController.navigate("chat/$roomId")
                 },
+                onCreateRoomClick = {
+                    navController.navigate("create_room")
+                },
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+        
+        composable("create_room") {
+            CreateRoomScreen(
+                onBackClick = { navController.popBackStack() },
+                onRoomCreated = { navController.popBackStack() }
             )
         }
         

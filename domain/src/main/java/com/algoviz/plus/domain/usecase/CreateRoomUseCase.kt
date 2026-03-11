@@ -11,14 +11,18 @@ class CreateRoomUseCase @Inject constructor(
         description: String,
         category: String,
         createdBy: String,
-        creatorName: String
+        creatorName: String,
+        maxMembers: Int = 50,
+        isPrivate: Boolean = false
     ): Result<String> {
         return repository.createRoom(
             name = name,
             description = description,
             category = category,
             createdBy = createdBy,
-            creatorName = creatorName
+            creatorName = creatorName,
+            maxMembers = maxMembers,
+            isPrivate = isPrivate
         )
     }
 }

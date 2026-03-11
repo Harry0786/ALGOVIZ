@@ -8,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -159,7 +159,7 @@ fun ProfileEditScreen(
                             .background(Color.White.copy(alpha = 0.1f))
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
