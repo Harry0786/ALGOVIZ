@@ -23,9 +23,10 @@ function optional(name) {
 async function main() {
   const serviceAccountRaw = required("FIREBASE_SERVICE_ACCOUNT_JSON");
   const projectId = required("FIREBASE_PROJECT_ID");
-  const configuredBucketName = required("FIREBASE_STORAGE_BUCKET");
+  const configuredBucketName = optional("FIREBASE_STORAGE_BUCKET");
   const googleServicesJsonBase64 = optional("GOOGLE_SERVICES_JSON_BASE64");
-  const apkPath = required("APK_PATH");
+  const apkPath = optional("APK_PATH");
+  const apkPublicUrlFromEnv = optional("APK_PUBLIC_URL");
   const versionCode = Number(required("VERSION_CODE"));
   const versionName = required("VERSION_NAME");
   const releaseNotes = process.env.RELEASE_NOTES?.trim() || `Automated release ${versionName}`;
@@ -36,74 +37,82 @@ async function main() {
   }
 
   const serviceAccount = JSON.parse(serviceAccountRaw);
-  const apkBytes = await readFile(apkPath);
   const objectPath = `releases/algoviz-v${versionName}-${versionCode}.apk`;
   const downloadToken = randomUUID();
+
+  let apkUrl = apkPublicUrlFromEnv;
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId
   });
 
-  // Different Firebase/GCS setups may expose either .appspot.com or .firebasestorage.app.
-  let googleServicesBucket = null;
-  if (googleServicesJsonBase64) {
-    try {
-      const googleServicesJson = Buffer.from(googleServicesJsonBase64, "base64").toString("utf8");
-      const parsed = JSON.parse(googleServicesJson);
-      googleServicesBucket = parsed?.project_info?.storage_bucket || null;
-    } catch {
-      // Ignore parse failures; other candidates still apply.
+  if (!apkUrl) {
+    if (!apkPath) {
+      throw new Error("APK_PUBLIC_URL or APK_PATH must be provided");
     }
-  }
 
-  const bucketCandidates = Array.from(new Set([
-    configuredBucketName,
-    googleServicesBucket,
-    `${projectId}.appspot.com`,
-    `${projectId}.firebasestorage.app`
-  ].filter(Boolean)));
+    const apkBytes = await readFile(apkPath);
 
-  let bucket = null;
-  let bucketName = null;
-  for (const candidate of bucketCandidates) {
-    try {
-      const current = admin.storage().bucket(candidate);
-      const [exists] = await current.exists();
-      if (exists) {
-        bucket = current;
-        bucketName = candidate;
-        break;
+    // Fallback upload path via Firebase Storage.
+    let googleServicesBucket = null;
+    if (googleServicesJsonBase64) {
+      try {
+        const googleServicesJson = Buffer.from(googleServicesJsonBase64, "base64").toString("utf8");
+        const parsed = JSON.parse(googleServicesJson);
+        googleServicesBucket = parsed?.project_info?.storage_bucket || null;
+      } catch {
+        // Ignore parse failures; other candidates still apply.
       }
-    } catch {
-      // Keep trying the next candidate.
     }
-  }
 
-  if (!bucket || !bucketName) {
-    throw new Error(
-      `No valid storage bucket found. Tried: ${bucketCandidates.join(", ")}. ` +
-      "Enable Firebase Storage in console if not enabled and update FIREBASE_STORAGE_BUCKET to the exact bucket name."
-    );
-  }
+    const bucketCandidates = Array.from(new Set([
+      configuredBucketName,
+      googleServicesBucket,
+      `${projectId}.appspot.com`,
+      `${projectId}.firebasestorage.app`
+    ].filter(Boolean)));
 
-  console.log(`Using storage bucket: ${bucketName}`);
+    let bucket = null;
+    let bucketName = null;
+    for (const candidate of bucketCandidates) {
+      try {
+        const current = admin.storage().bucket(candidate);
+        const [exists] = await current.exists();
+        if (exists) {
+          bucket = current;
+          bucketName = candidate;
+          break;
+        }
+      } catch {
+        // Keep trying the next candidate.
+      }
+    }
 
-  const file = bucket.file(objectPath);
+    if (!bucket || !bucketName) {
+      throw new Error(
+        `No valid storage bucket found. Tried: ${bucketCandidates.join(", ")}. ` +
+        "Provide APK_PUBLIC_URL (preferred) or fix FIREBASE_STORAGE_BUCKET."
+      );
+    }
 
-  await file.save(apkBytes, {
-    resumable: false,
-    contentType: "application/vnd.android.package-archive",
-    metadata: {
+    console.log(`Using storage bucket: ${bucketName}`);
+
+    const file = bucket.file(objectPath);
+    await file.save(apkBytes, {
+      resumable: false,
+      contentType: "application/vnd.android.package-archive",
       metadata: {
-        firebaseStorageDownloadTokens: downloadToken
-      },
-      cacheControl: "public, max-age=3600"
-    }
-  });
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken
+        },
+        cacheControl: "public, max-age=3600"
+      }
+    });
 
-  const encodedObjectPath = encodeURIComponent(objectPath);
-  const apkUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedObjectPath}?alt=media&token=${downloadToken}`;
+    const encodedObjectPath = encodeURIComponent(objectPath);
+    apkUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedObjectPath}?alt=media&token=${downloadToken}`;
+  }
 
   await admin
     .firestore()
