@@ -12,10 +12,19 @@ function required(name) {
   return value;
 }
 
+function optional(name) {
+  const value = process.env[name];
+  if (!value || value.trim() === "") {
+    return null;
+  }
+  return value;
+}
+
 async function main() {
   const serviceAccountRaw = required("FIREBASE_SERVICE_ACCOUNT_JSON");
   const projectId = required("FIREBASE_PROJECT_ID");
   const configuredBucketName = required("FIREBASE_STORAGE_BUCKET");
+  const googleServicesJsonBase64 = optional("GOOGLE_SERVICES_JSON_BASE64");
   const apkPath = required("APK_PATH");
   const versionCode = Number(required("VERSION_CODE"));
   const versionName = required("VERSION_NAME");
@@ -37,11 +46,23 @@ async function main() {
   });
 
   // Different Firebase/GCS setups may expose either .appspot.com or .firebasestorage.app.
+  let googleServicesBucket = null;
+  if (googleServicesJsonBase64) {
+    try {
+      const googleServicesJson = Buffer.from(googleServicesJsonBase64, "base64").toString("utf8");
+      const parsed = JSON.parse(googleServicesJson);
+      googleServicesBucket = parsed?.project_info?.storage_bucket || null;
+    } catch {
+      // Ignore parse failures; other candidates still apply.
+    }
+  }
+
   const bucketCandidates = Array.from(new Set([
     configuredBucketName,
+    googleServicesBucket,
     `${projectId}.appspot.com`,
     `${projectId}.firebasestorage.app`
-  ]));
+  ].filter(Boolean)));
 
   let bucket = null;
   let bucketName = null;
@@ -62,7 +83,7 @@ async function main() {
   if (!bucket || !bucketName) {
     throw new Error(
       `No valid storage bucket found. Tried: ${bucketCandidates.join(", ")}. ` +
-      "Update FIREBASE_STORAGE_BUCKET secret to your real bucket name."
+      "Enable Firebase Storage in console if not enabled and update FIREBASE_STORAGE_BUCKET to the exact bucket name."
     );
   }
 
