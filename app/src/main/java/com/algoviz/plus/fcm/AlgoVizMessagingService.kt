@@ -1,5 +1,7 @@
 package com.algoviz.plus.fcm
 
+import android.app.ActivityManager
+import android.content.Context
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.google.firebase.auth.FirebaseAuth
@@ -16,6 +18,11 @@ class AlgoVizMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         Timber.d("Message received from: ${message.from}")
+
+        if (!isAppInForeground()) {
+            Timber.d("Skipping push display because app is not in foreground")
+            return
+        }
 
         val title = message.notification?.title
             ?: message.data["title"]
@@ -45,5 +52,16 @@ class AlgoVizMessagingService : FirebaseMessagingService() {
             body = body,
             roomId = roomId
         )
+    }
+
+    private fun isAppInForeground(): Boolean {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
+        val runningProcesses = activityManager.runningAppProcesses ?: return false
+        val processName = packageName
+
+        return runningProcesses.any {
+            it.processName == processName &&
+                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        }
     }
 }
