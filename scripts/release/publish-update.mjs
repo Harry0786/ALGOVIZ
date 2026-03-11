@@ -15,7 +15,7 @@ function required(name) {
 async function main() {
   const serviceAccountRaw = required("FIREBASE_SERVICE_ACCOUNT_JSON");
   const projectId = required("FIREBASE_PROJECT_ID");
-  const bucketName = required("FIREBASE_STORAGE_BUCKET");
+  const configuredBucketName = required("FIREBASE_STORAGE_BUCKET");
   const apkPath = required("APK_PATH");
   const versionCode = Number(required("VERSION_CODE"));
   const versionName = required("VERSION_NAME");
@@ -33,11 +33,41 @@ async function main() {
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: bucketName,
     projectId
   });
 
-  const bucket = admin.storage().bucket(bucketName);
+  // Different Firebase/GCS setups may expose either .appspot.com or .firebasestorage.app.
+  const bucketCandidates = Array.from(new Set([
+    configuredBucketName,
+    `${projectId}.appspot.com`,
+    `${projectId}.firebasestorage.app`
+  ]));
+
+  let bucket = null;
+  let bucketName = null;
+  for (const candidate of bucketCandidates) {
+    try {
+      const current = admin.storage().bucket(candidate);
+      const [exists] = await current.exists();
+      if (exists) {
+        bucket = current;
+        bucketName = candidate;
+        break;
+      }
+    } catch {
+      // Keep trying the next candidate.
+    }
+  }
+
+  if (!bucket || !bucketName) {
+    throw new Error(
+      `No valid storage bucket found. Tried: ${bucketCandidates.join(", ")}. ` +
+      "Update FIREBASE_STORAGE_BUCKET secret to your real bucket name."
+    );
+  }
+
+  console.log(`Using storage bucket: ${bucketName}`);
+
   const file = bucket.file(objectPath);
 
   await file.save(apkBytes, {
