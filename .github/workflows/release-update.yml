@@ -22,7 +22,7 @@ on:
 
 jobs:
   publish-update:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
 
@@ -33,15 +33,15 @@ jobs:
           fetch-depth: 0
 
       - name: Ensure tagged commit is on master
-        shell: pwsh
+        shell: bash
         if: github.ref_type == 'tag'
         run: |
           git fetch origin master
-          $tagSha = (git rev-list -n 1 "$env:GITHUB_REF_NAME").Trim()
-          $isOnMaster = (git branch -r --contains $tagSha | Select-String "origin/master")
-          if (-not $isOnMaster) {
-            throw "Tag $env:GITHUB_REF_NAME is not on origin/master. Release is blocked by branch policy."
-          }
+          TAG_SHA="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          if ! git merge-base --is-ancestor "$TAG_SHA" origin/master; then
+            echo "Tag $GITHUB_REF_NAME is not on origin/master. Release is blocked by branch policy."
+            exit 1
+          fi
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -55,90 +55,74 @@ jobs:
           node-version: "20"
 
       - name: Decode Android signing keystore
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Path keystore -Force | Out-Null
-          $bytes = [System.Convert]::FromBase64String("${{ secrets.ANDROID_KEYSTORE_BASE64 }}")
-          [System.IO.File]::WriteAllBytes("keystore/release.jks", $bytes)
+          mkdir -p keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > keystore/release.jks
 
       - name: Create local.properties for CI signing
-        shell: pwsh
+        shell: bash
         run: |
-          $sdkDir = $env:ANDROID_SDK_ROOT
-          if ([string]::IsNullOrWhiteSpace($sdkDir)) {
-            $sdkDir = $env:ANDROID_HOME
-          }
-          if ([string]::IsNullOrWhiteSpace($sdkDir)) {
-            throw "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
-          }
+          SDK_DIR="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_DIR" ]; then
+            echo "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
+            exit 1
+          fi
 
-          $sdkDirNormalized = $sdkDir.Replace('\\', '/')
-          $lines = @(
-            "sdk.dir=$sdkDirNormalized",
-            "RELEASE_STORE_FILE=../keystore/release.jks",
-            "RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}",
-            "RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}",
-            "RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
-          )
-          [System.IO.File]::WriteAllLines("local.properties", $lines)
+          cat > local.properties <<EOF
+          sdk.dir=$SDK_DIR
+          RELEASE_STORE_FILE=../keystore/release.jks
+          RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
 
       - name: Show generated local.properties
-        shell: pwsh
-        run: Get-Content local.properties
+        shell: bash
+        run: cat local.properties
 
       - name: Build release APK
-        shell: pwsh
-        run: .\gradlew.bat :app:assembleRelease --no-daemon
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease --no-daemon
 
       - name: Resolve release metadata
         id: meta
-        shell: pwsh
+        shell: bash
         run: |
-          $gradleText = Get-Content app/build.gradle.kts -Raw
+          VERSION_CODE=$(grep -m1 'versionCode\s*=\s*' app/build.gradle.kts | sed -E 's/[^0-9]//g')
+          VERSION_NAME_FROM_GRADLE=$(grep -m1 'versionName\s*=\s*"' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
 
-          $versionCodeMatch = [regex]::Match($gradleText, 'versionCode\s*=\s*(\d+)')
-          if (-not $versionCodeMatch.Success) {
-            throw "Unable to parse versionCode from app/build.gradle.kts"
-          }
-          $versionCode = $versionCodeMatch.Groups[1].Value
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == v* ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          else
+            VERSION_NAME="$VERSION_NAME_FROM_GRADLE"
+          fi
 
-          $versionNameMatch = [regex]::Match($gradleText, 'versionName\s*=\s*"([^"]+)"')
-          if (-not $versionNameMatch.Success) {
-            throw "Unable to parse versionName from app/build.gradle.kts"
-          }
-          $versionNameFromGradle = $versionNameMatch.Groups[1].Value
+          if [[ -n "${{ github.event.inputs.releaseNotes }}" ]]; then
+            RELEASE_NOTES="${{ github.event.inputs.releaseNotes }}"
+          else
+            RELEASE_NOTES="Automated release $VERSION_NAME"
+          fi
 
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME.StartsWith('v')) {
-            $versionName = $env:GITHUB_REF_NAME.Substring(1)
-          } else {
-            $versionName = $versionNameFromGradle
-          }
+          if [[ "${{ github.event.inputs.forceUpdate }}" == "true" ]]; then
+            FORCE_UPDATE="true"
+          else
+            FORCE_UPDATE="false"
+          fi
 
-          $releaseNotesInput = "${{ github.event.inputs.releaseNotes }}"
-          if ([string]::IsNullOrWhiteSpace($releaseNotesInput)) {
-            $releaseNotes = "Automated release $versionName"
-          } else {
-            $releaseNotes = $releaseNotesInput
-          }
-
-          $forceUpdateInput = "${{ github.event.inputs.forceUpdate }}"
-          if ($forceUpdateInput -eq 'true') {
-            $forceUpdate = 'true'
-          } else {
-            $forceUpdate = 'false'
-          }
-
-          "version_code=$versionCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "version_name=$versionName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "release_notes=$releaseNotes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "force_update=$forceUpdate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "release_notes=$RELEASE_NOTES" >> "$GITHUB_OUTPUT"
+          echo "force_update=$FORCE_UPDATE" >> "$GITHUB_OUTPUT"
 
       - name: Install publish dependencies
-        shell: pwsh
+        shell: bash
         run: npm install firebase-admin@12 --no-save
 
       - name: Publish APK and Firestore metadata
-        shell: pwsh
+        shell: bash
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
