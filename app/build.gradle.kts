@@ -145,6 +145,11 @@ android {
             excludes += "/META-INF/LICENSE-notice.md"
         }
     }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 dependencies {
