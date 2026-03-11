@@ -42,6 +42,10 @@ class StudyRoomRepositoryImpl @Inject constructor(
             rooms.map { StudyRoomMapper.toDomain(it) }
         }
     }
+
+    override fun getUnreadCounts(userId: String): Flow<Map<String, Int>> {
+        return dataSource.observeUnreadCounts(userId)
+    }
     
     override suspend fun createRoom(
         name: String,
@@ -71,6 +75,10 @@ class StudyRoomRepositoryImpl @Inject constructor(
     
     override suspend fun leaveRoom(roomId: String, userId: String): Result<Unit> {
         return dataSource.leaveRoom(roomId, userId)
+    }
+
+    override suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> {
+        return dataSource.markRoomAsRead(roomId, userId)
     }
 
     override suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit> {

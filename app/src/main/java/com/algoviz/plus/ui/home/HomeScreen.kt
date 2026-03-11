@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -67,7 +68,6 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onVisualize: () -> Unit = {},
     onStudyRooms: () -> Unit = {},
-    onAdminUpdate: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -188,7 +188,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (drawerState.isOpen) {
+                    if (drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         Modifier.blur(radius = 16.dp)
                     } else {
                         Modifier
@@ -320,11 +320,11 @@ fun HomeScreen(
                     )
                     QuickActionCard(
                         modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.SystemUpdate,
-                        title = "App Update",
-                        subtitle = "Admin",
+                        icon = Icons.Outlined.Person,
+                        title = "Profile",
+                        subtitle = "Account",
                         gradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
-                        onClick = onAdminUpdate
+                        onClick = onProfileClick
                     )
                 }
             }
@@ -368,6 +368,14 @@ fun HomeScreen(
             }
             
             Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        if (drawerState.isOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.22f))
+            )
         }
     }
                 }

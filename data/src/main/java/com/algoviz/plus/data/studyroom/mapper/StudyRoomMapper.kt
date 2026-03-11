@@ -88,7 +88,8 @@ object StudyRoomMapper {
             userName = dto.userName,
             joinedAt = dto.joinedAt,
             isOnline = dto.isOnline,
-            lastSeenAt = dto.lastSeenAt
+            lastSeenAt = dto.lastSeenAt,
+            unreadCount = dto.unreadCount
         )
     }
     
@@ -98,7 +99,8 @@ object StudyRoomMapper {
             userName = member.userName,
             joinedAt = member.joinedAt,
             isOnline = member.isOnline,
-            lastSeenAt = member.lastSeenAt
+            lastSeenAt = member.lastSeenAt,
+            unreadCount = member.unreadCount
         )
     }
     

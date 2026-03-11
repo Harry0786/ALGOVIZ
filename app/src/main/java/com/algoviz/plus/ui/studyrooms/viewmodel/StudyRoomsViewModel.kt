@@ -6,6 +6,7 @@ import com.algoviz.plus.domain.usecase.CreateRoomUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.JoinStudyRoomUseCase
 import com.algoviz.plus.domain.usecase.LeaveRoomUseCase
+import com.algoviz.plus.fcm.StudyRoomTopicManager
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.state.CreateRoomEvent
 import com.algoviz.plus.ui.studyrooms.state.StudyRoomAction
@@ -83,12 +84,14 @@ class StudyRoomsViewModel @Inject constructor(
                     }
                     .collect { rooms ->
                         val myRooms = getStudyRoomsUseCase.myRooms(user.id).firstOrNull() ?: emptyList()
+                        val unreadCounts = getStudyRoomsUseCase.unreadCounts(user.id).firstOrNull() ?: emptyMap()
                         
                         _uiState.value = StudyRoomsUiState.Success(
                             rooms = rooms,
                             myRooms = myRooms,
                             selectedCategory = null,
-                            loadingRoomId = null
+                            loadingRoomId = null,
+                            unreadCounts = unreadCounts
                         )
                     }
             } catch (e: CancellationException) {
@@ -113,8 +116,9 @@ class StudyRoomsViewModel @Inject constructor(
                 combine(
                     getStudyRoomsUseCase(), 
                     getStudyRoomsUseCase.myRooms(user.id),
-                    _selectedCategory
-                ) { allRooms, myRooms, category ->
+                    _selectedCategory,
+                    getStudyRoomsUseCase.unreadCounts(user.id)
+                ) { allRooms, myRooms, category, unreadCounts ->
                     val filteredRooms = if (category != null) {
                         allRooms.filter { it.category.name == category }
                     } else {
@@ -124,7 +128,8 @@ class StudyRoomsViewModel @Inject constructor(
                         rooms = filteredRooms,
                         myRooms = myRooms,
                         selectedCategory = category,
-                        loadingRoomId = null
+                        loadingRoomId = null,
+                        unreadCounts = unreadCounts
                     )
                 }
                 .catch { e ->
@@ -188,6 +193,9 @@ class StudyRoomsViewModel @Inject constructor(
                 }
                 
                 // Clear loading state on failure (success handled by real-time listener)
+                result.onSuccess {
+                    StudyRoomTopicManager.subscribeToRoom(roomId)
+                }
                 result.onFailure { error ->
                     if (currentState is StudyRoomsUiState.Success) {
                         _uiState.value = currentState.copy(loadingRoomId = null)
@@ -280,6 +288,10 @@ class StudyRoomsViewModel @Inject constructor(
                 
                 val result = withTimeout(10000L) { // 10 second timeout
                     leaveRoomUseCase(roomId, user.id)
+                }
+
+                result.onSuccess {
+                    StudyRoomTopicManager.unsubscribeFromRoom(roomId)
                 }
                 
                 result.onFailure { error ->

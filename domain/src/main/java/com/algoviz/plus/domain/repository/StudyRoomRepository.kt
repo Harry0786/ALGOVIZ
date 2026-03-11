@@ -12,6 +12,7 @@ interface StudyRoomRepository {
     fun getRoomsByCategory(category: String): Flow<List<StudyRoom>>
     fun getRoomById(roomId: String): Flow<StudyRoom?>
     fun getMyRooms(userId: String): Flow<List<StudyRoom>>
+    fun getUnreadCounts(userId: String): Flow<Map<String, Int>>
     suspend fun createRoom(
         name: String,
         description: String,
@@ -23,6 +24,7 @@ interface StudyRoomRepository {
     ): Result<String>
     suspend fun joinRoom(roomId: String, userId: String, userName: String): Result<Unit>
     suspend fun leaveRoom(roomId: String, userId: String): Result<Unit>
+    suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit>
     suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit>
     
     // Message operations

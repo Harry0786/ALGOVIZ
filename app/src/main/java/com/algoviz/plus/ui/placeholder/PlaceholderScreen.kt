@@ -3,6 +3,7 @@ package com.algoviz.plus.ui.placeholder
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -15,7 +16,6 @@ import com.algoviz.plus.ui.profile.ProfileEditScreen
 import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
 import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
 import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
-import com.algoviz.plus.ui.update.AdminAppUpdateScreen
 
 @Composable
 fun PlaceholderScreen(
@@ -31,16 +31,9 @@ fun PlaceholderScreen(
         composable("home") {
             HomeScreen(
                 onLogoutClick = { authViewModel.logout() },
-                onProfileClick = { navController.navigate("profile_edit") },
-                onVisualize = { navController.navigate("algorithms") },
-                onStudyRooms = { navController.navigate("study_rooms") },
-                onAdminUpdate = { navController.navigate("admin_app_update") }
-            )
-        }
-
-        composable("admin_app_update") {
-            AdminAppUpdateScreen(
-                onBackClick = { navController.popBackStack() }
+                onProfileClick = { navController.navigateSafely("profile_edit") },
+                onVisualize = { navController.navigateSafely("algorithms") },
+                onStudyRooms = { navController.navigateSafely("study_rooms") }
             )
         }
         
@@ -96,6 +89,18 @@ fun PlaceholderScreen(
                     navController.popBackStack()
                 }
             )
+        }
+    }
+}
+
+private fun NavHostController.navigateSafely(route: String) {
+    if (currentDestination?.route == route) {
+        return
+    }
+
+    runCatching {
+        navigate(route) {
+            launchSingleTop = true
         }
     }
 }
