@@ -5,13 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,11 +24,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.io.File
-import java.net.URI
 
 @Composable
 fun AppUpdateDialog(
@@ -61,7 +56,7 @@ fun AppUpdateDialog(
                     override fun onReceive(ctx: Context, intent: Intent) {
                         val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
                         if (completedId == state.downloadId) {
-                            installApk(ctx, state.downloadId)
+                            viewModel.onDownloadComplete(ctx, state.downloadId)
                         }
                     }
                 }
@@ -74,6 +69,21 @@ fun AppUpdateDialog(
                 onDispose { context.unregisterReceiver(receiver) }
             }
             DownloadingDialog()
+        }
+
+        is AppUpdateViewModel.UpdateState.DownloadFailed -> {
+            DownloadFailedDialog(
+                message = state.message,
+                onRetry = {
+                    val info = state.info
+                    if (info != null && info.apkUrl.isNotBlank()) {
+                        viewModel.startDownload(context, info.apkUrl)
+                    } else {
+                        viewModel.retryLastUpdate()
+                    }
+                },
+                onDismiss = { viewModel.dismissUpdate() }
+            )
         }
 
         else -> { /* No dialog shown */ }
@@ -234,45 +244,54 @@ private fun DownloadingDialog() {
     }
 }
 
-private fun installApk(context: Context, downloadId: Long) {
-    // On API 26+, the user must have "Install unknown apps" enabled for this app
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-        !context.packageManager.canRequestPackageInstalls()
-    ) {
-        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = Uri.parse("package:${context.packageName}")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }.also { context.startActivity(it) }
-        return
+@Composable
+private fun DownloadFailedDialog(
+    message: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B4B))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Update Download Failed",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = message,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF5EEAD4),
+                        contentColor = Color(0xFF1A1344)
+                    )
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Retry")
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Later", color = Color.White.copy(alpha = 0.6f))
+                }
+            }
+        }
     }
-
-    val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-    val query = DownloadManager.Query().setFilterById(downloadId)
-    val cursor = dm.query(query)
-    if (!cursor.moveToFirst()) { cursor.close(); return }
-
-    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-    val localUriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-    val status = cursor.getInt(statusIndex)
-    val localUriStr = cursor.getString(localUriIndex)
-    cursor.close()
-
-    if (status != DownloadManager.STATUS_SUCCESSFUL || localUriStr == null) return
-
-    val file = try {
-        File(URI(localUriStr).path)
-    } catch (e: Exception) {
-        File(Uri.parse(localUriStr).path ?: return)
-    }
-    if (!file.exists()) return
-
-    val apkUri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.provider",
-        file
-    )
-    Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(apkUri, "application/vnd.android.package-archive")
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-    }.also { context.startActivity(it) }
 }

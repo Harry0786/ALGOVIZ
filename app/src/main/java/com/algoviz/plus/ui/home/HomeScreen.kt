@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.algoviz.plus.BuildConfig
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -520,6 +522,7 @@ private fun UserDrawerContent(
     onShareAppClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
+    val versionLabel = "Version ${BuildConfig.VERSION_NAME.substringBefore('-')}"
     val avatarColors = listOf(
         listOf(Color(0xFF5EEAD4), Color(0xFF06B6D4)), // Cyan
         listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)), // Purple
@@ -642,6 +645,19 @@ private fun UserDrawerContent(
             )
             
             Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = versionLabel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                textAlign = TextAlign.Center,
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.55f),
+                letterSpacing = 0.2.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
             
             HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),
@@ -650,7 +666,7 @@ private fun UserDrawerContent(
             
             // Logout Button
             DrawerMenuItem(
-                icon = Icons.Outlined.ExitToApp,
+                icon = Icons.AutoMirrored.Outlined.ExitToApp,
                 title = "Logout",
                 onClick = onLogoutClick,
                 isDestructive = true
