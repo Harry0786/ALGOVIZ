@@ -60,6 +60,11 @@ jobs:
           mkdir -p keystore
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > keystore/release.jks
 
+      - name: Restore google-services.json
+        shell: bash
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > app/google-services.json
+
       - name: Create local.properties for CI signing
         shell: bash
         run: |
