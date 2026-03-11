@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,8 +62,10 @@ import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import timber.log.Timber
 import androidx.annotation.DrawableRes
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -74,6 +77,7 @@ fun LoginScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -88,9 +92,28 @@ fun LoginScreen(
                 val account = task.getResult(ApiException::class.java)
                 account.idToken?.let { idToken ->
                     viewModel.signInWithGoogle(idToken)
+                } ?: run {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Google Sign-In did not return ID token. Check OAuth client setup.")
+                    }
                 }
             } catch (e: ApiException) {
                 Timber.e(e, "Google sign-in failed")
+                val message = when (e.statusCode) {
+                    CommonStatusCodes.DEVELOPER_ERROR -> {
+                        "Google Sign-In config issue (release SHA/OAuth). Please contact support."
+                    }
+                    CommonStatusCodes.NETWORK_ERROR -> "Network error during Google Sign-In."
+                    CommonStatusCodes.CANCELED -> "Google Sign-In cancelled."
+                    else -> "Google Sign-In failed (${e.statusCode})."
+                }
+                scope.launch {
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Google Sign-In was cancelled.")
             }
         }
     }
@@ -231,7 +254,14 @@ fun LoginScreen(
 
             GoogleSignInButton(
                 onClick = {
-                    val webClientId = "139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com"
+                    val webClientId = resolveWebClientId(context)
+                    if (webClientId.isBlank()) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Google Sign-In is not configured for this build.")
+                        }
+                        return@GoogleSignInButton
+                    }
+
                     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestIdToken(webClientId)
                         .requestEmail()
@@ -278,6 +308,21 @@ fun LoginScreen(
             isLoading = uiState is AuthUiState.Loading
         )
     }
+}
+
+private fun resolveWebClientId(context: android.content.Context): String {
+    val id = context.resources.getIdentifier(
+        "default_web_client_id",
+        "string",
+        context.packageName
+    )
+
+    if (id != 0) {
+        return context.getString(id)
+    }
+
+    // Fallback for builds where google-services resource generation is missing.
+    return "139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com"
 }
 
 @Composable
