@@ -130,3 +130,21 @@ pwsh ./scripts/release/generate-ci-secrets.ps1 \
 3. Push a tag (example: `v1.1.0`) to trigger release automation.
 4. Confirm workflow success in GitHub Actions.
 5. Open installed app on test device and verify update prompt appears.
+
+### One-Command Release (Master Branch)
+
+Use this script to automate version bump, release build, commit, push, tag, and tag push:
+
+```powershell
+pwsh ./scripts/release/release.ps1 -VersionName 1.2.0
+```
+
+Optional explicit version code:
+
+```powershell
+pwsh ./scripts/release/release.ps1 -VersionName 1.2.0 -VersionCode 3
+```
+
+Notes:
+- Must be run on a clean `master` branch.
+- By default it runs `:app:assembleRelease` before tagging.
