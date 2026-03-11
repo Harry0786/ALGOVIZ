@@ -31,7 +31,8 @@ data class RoomMember(
     val userName: String,
     val joinedAt: Long,
     val isOnline: Boolean = false,
-    val lastSeenAt: Long? = null
+    val lastSeenAt: Long? = null,
+    val unreadCount: Int = 0
 )
 
 data class UserPresence(

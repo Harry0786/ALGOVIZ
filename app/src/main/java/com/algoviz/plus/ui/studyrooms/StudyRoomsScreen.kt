@@ -170,6 +170,7 @@ fun StudyRoomsScreen(
                             StudyRoomsList(
                                 rooms = state.rooms,
                                 myRooms = state.myRooms,
+                                unreadCounts = state.unreadCounts,
                                 onRoomClick = onRoomClick,
                                 onJoinRoom = { roomId ->
                                     viewModel.onAction(StudyRoomAction.JoinRoom(roomId))
@@ -227,6 +228,7 @@ fun StudyRoomsScreen(
 fun StudyRoomsList(
     rooms: List<StudyRoom>,
     myRooms: List<StudyRoom>,
+    unreadCounts: Map<String, Int>,
     onRoomClick: (String) -> Unit,
     onJoinRoom: (String) -> Unit,
     onLeaveRoom: (String) -> Unit,
@@ -285,6 +287,7 @@ fun StudyRoomsList(
                 RoomCard(
                     room = room,
                     isJoined = true,
+                    unreadCount = unreadCounts[room.id] ?: 0,
                     onClick = { onRoomClick(room.id) },
                     onActionClick = { onLeaveRoom(room.id) },
                     isLoading = loadingRoomId == room.id
@@ -309,6 +312,7 @@ fun StudyRoomsList(
             RoomCard(
                 room = room,
                 isJoined = false,
+                unreadCount = unreadCounts[room.id] ?: 0,
                 onClick = { onRoomClick(room.id) },
                 onActionClick = { onJoinRoom(room.id) },
                 isLoading = loadingRoomId == room.id
@@ -321,6 +325,7 @@ fun StudyRoomsList(
 fun RoomCard(
     room: StudyRoom,
     isJoined: Boolean,
+    unreadCount: Int,
     onClick: () -> Unit,
     onActionClick: () -> Unit,
     isLoading: Boolean = false
@@ -370,6 +375,21 @@ fun RoomCard(
                         fontSize = 13.sp,
                         color = Color(0xFF5EEAD4)
                     )
+                    if (isJoined && unreadCount > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            color = Color(0xFF22C55E),
+                            shape = RoundedCornerShape(999.dp)
+                        ) {
+                            Text(
+                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
                 
                 Button(

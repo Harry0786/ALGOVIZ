@@ -23,6 +23,14 @@ class GetStudyRoomsUseCase @Inject constructor(
     fun myRooms(userId: String): Flow<List<StudyRoom>> {
         return repository.getMyRooms(userId)
     }
+
+    fun unreadCounts(userId: String): Flow<Map<String, Int>> {
+        return repository.getUnreadCounts(userId)
+    }
+
+    suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> {
+        return repository.markRoomAsRead(roomId, userId)
+    }
     
     fun search(query: String): Flow<List<StudyRoom>> {
         return repository.searchRooms(query)

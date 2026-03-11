@@ -1,0 +1,16 @@
+{
+  "name": "studyroom-push-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "External Study Room push sender for Firestore -> FCM topics",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

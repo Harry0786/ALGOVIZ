@@ -8,7 +8,8 @@ sealed class StudyRoomsUiState {
         val rooms: List<StudyRoom>,
         val myRooms: List<StudyRoom>,
         val selectedCategory: String? = null,
-        val loadingRoomId: String? = null // Room being joined/left
+        val loadingRoomId: String? = null, // Room being joined/left
+        val unreadCounts: Map<String, Int> = emptyMap()
     ) : StudyRoomsUiState()
     data class Error(val message: String) : StudyRoomsUiState()
 }

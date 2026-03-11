@@ -5,6 +5,7 @@ import com.algoviz.plus.data.studyroom.model.RoomMemberDto
 import com.algoviz.plus.data.studyroom.model.StudyRoomDto
 import com.algoviz.plus.data.studyroom.model.UserPresenceDto
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -123,6 +124,45 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             }
         awaitClose { listener.remove() }
     }
+
+    fun observeUnreadCounts(userId: String): Flow<Map<String, Int>> = callbackFlow {
+        val listener = firestore.collection(ROOMS_COLLECTION)
+            .whereEqualTo("isActive", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val allRooms = snapshot?.documents?.map { it.id } ?: emptyList()
+                if (allRooms.isEmpty()) {
+                    trySend(emptyMap())
+                    return@addSnapshotListener
+                }
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    val unreadByRoom = mutableMapOf<String, Int>()
+                    for (roomId in allRooms) {
+                        try {
+                            val memberDoc = firestore.collection(ROOMS_COLLECTION)
+                                .document(roomId)
+                                .collection(MEMBERS_COLLECTION)
+                                .document(userId)
+                                .get()
+                                .await()
+                            if (memberDoc.exists()) {
+                                val unread = (memberDoc.getLong("unreadCount") ?: 0L).toInt()
+                                unreadByRoom[roomId] = unread
+                            }
+                        } catch (_: Exception) {
+                            // Ignore individual room read failures.
+                        }
+                    }
+                    trySend(unreadByRoom)
+                }
+            }
+        awaitClose { listener.remove() }
+    }
     
     suspend fun createRoom(roomDto: StudyRoomDto, creatorName: String): Result<String> = runCatching {
         val docRef = firestore.collection(ROOMS_COLLECTION).document()
@@ -172,7 +212,9 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             userId = userId,
             userName = userName,
             joinedAt = System.currentTimeMillis(),
-            isOnline = true
+            isOnline = true,
+            lastSeenAt = System.currentTimeMillis(),
+            unreadCount = 0
         )
         memberRef.set(memberDto).await()
         
@@ -221,6 +263,22 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             // Log error but don't fail the leave operation since member is already removed
             // The count might be slightly off but will be corrected on next operation
         }
+    }
+
+    suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> = runCatching {
+        val memberRef = firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .collection(MEMBERS_COLLECTION)
+            .document(userId)
+
+        memberRef.set(
+            mapOf(
+                "lastSeenAt" to System.currentTimeMillis(),
+                "unreadCount" to 0,
+                "isOnline" to true
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        ).await()
     }
 
     suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit> = runCatching {
@@ -306,6 +364,26 @@ class FirebaseStudyRoomDataSource @Inject constructor(
                     "lastMessageAt" to messageWithId.timestamp
                 )
             ).await()
+
+            // Increment unread counters for other members; reset sender counter.
+            val membersSnapshot = roomRef.collection(MEMBERS_COLLECTION).get().await()
+            val batch = firestore.batch()
+            membersSnapshot.documents.forEach { member ->
+                if (member.id == messageDto.userId) {
+                    batch.set(
+                        member.reference,
+                        mapOf(
+                            "unreadCount" to 0,
+                            "lastSeenAt" to messageWithId.timestamp,
+                            "isOnline" to true
+                        ),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    )
+                } else {
+                    batch.update(member.reference, "unreadCount", FieldValue.increment(1))
+                }
+            }
+            batch.commit().await()
         } catch (e: Exception) {
             // Log but don't throw - message was saved successfully
         }
