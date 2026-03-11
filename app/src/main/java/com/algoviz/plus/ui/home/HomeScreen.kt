@@ -64,6 +64,7 @@ fun HomeScreen(
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
     onVisualize: () -> Unit = {},
+    onStudyRooms: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -294,11 +295,11 @@ fun HomeScreen(
                     )
                     QuickActionCard(
                         modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.Code,
-                        title = "Practice",
-                        subtitle = "Coding",
+                        icon = Icons.Outlined.Groups,
+                        title = "Study Rooms",
+                        subtitle = "Collaborate",
                         gradient = listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)),
-                        onClick = { /* Navigate */ }
+                        onClick = onStudyRooms
                     )
                 }
                 

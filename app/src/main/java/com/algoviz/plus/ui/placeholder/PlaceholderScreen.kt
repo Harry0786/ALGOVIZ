@@ -12,9 +12,12 @@ import com.algoviz.plus.ui.algorithms.AlgorithmListScreen
 import com.algoviz.plus.ui.algorithms.AlgorithmVisualizationScreen
 import com.algoviz.plus.ui.home.HomeScreen
 import com.algoviz.plus.ui.profile.ProfileEditScreen
+import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
+import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
 
 @Composable
 fun PlaceholderScreen(
+    onSignOutClick: () -> Unit,
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -27,7 +30,8 @@ fun PlaceholderScreen(
             HomeScreen(
                 onLogoutClick = { authViewModel.logout() },
                 onProfileClick = { navController.navigate("profile_edit") },
-                onVisualize = { navController.navigate("algorithms") }
+                onVisualize = { navController.navigate("algorithms") },
+                onStudyRooms = { navController.navigate("study_rooms") }
             )
         }
         
@@ -52,6 +56,26 @@ fun PlaceholderScreen(
         ) {
             AlgorithmVisualizationScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+        
+        composable("study_rooms") {
+            StudyRoomsScreen(
+                onRoomClick = { roomId ->
+                    navController.navigate("chat/$roomId")
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        
+        composable(
+            route = "chat/{roomId}",
+            arguments = listOf(navArgument("roomId") { type = NavType.StringType })
+        ) {
+            ChatRoomScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
             )
         }
     }

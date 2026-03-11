@@ -191,6 +191,7 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.storage)
     implementation(libs.play.services.auth)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.google.id.library)

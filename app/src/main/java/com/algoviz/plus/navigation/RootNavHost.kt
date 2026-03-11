@@ -34,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.algoviz.plus.features.auth.presentation.navigation.AuthRoute
 import com.algoviz.plus.features.auth.presentation.navigation.authNavGraph
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
@@ -109,7 +111,12 @@ fun RootNavHost(
         )
 
         composable("main") {
-            PlaceholderScreen(authViewModel = authViewModel)
+            PlaceholderScreen(
+                onSignOutClick = {
+                    authViewModel.logout()
+                },
+                authViewModel = authViewModel
+            )
         }
     }
 }
