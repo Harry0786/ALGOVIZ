@@ -6,7 +6,6 @@ import com.algoviz.plus.domain.usecase.CreateRoomUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.JoinStudyRoomUseCase
 import com.algoviz.plus.domain.usecase.LeaveRoomUseCase
-import com.algoviz.plus.fcm.StudyRoomTopicManager
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.state.CreateRoomEvent
 import com.algoviz.plus.ui.studyrooms.state.StudyRoomAction
@@ -193,9 +192,6 @@ class StudyRoomsViewModel @Inject constructor(
                 }
                 
                 // Clear loading state on failure (success handled by real-time listener)
-                result.onSuccess {
-                    StudyRoomTopicManager.subscribeToRoom(roomId)
-                }
                 result.onFailure { error ->
                     if (currentState is StudyRoomsUiState.Success) {
                         _uiState.value = currentState.copy(loadingRoomId = null)
@@ -288,10 +284,6 @@ class StudyRoomsViewModel @Inject constructor(
                 
                 val result = withTimeout(10000L) { // 10 second timeout
                     leaveRoomUseCase(roomId, user.id)
-                }
-
-                result.onSuccess {
-                    StudyRoomTopicManager.unsubscribeFromRoom(roomId)
                 }
                 
                 result.onFailure { error ->

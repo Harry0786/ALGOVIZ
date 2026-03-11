@@ -8,7 +8,6 @@ import com.algoviz.plus.domain.usecase.GetRoomMembersUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMessagesUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.SendMessageUseCase
-import com.algoviz.plus.fcm.StudyRoomTopicManager
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.chat.state.ChatRoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -56,7 +55,6 @@ class ChatRoomViewModel @Inject constructor(
     val roomDeleted: StateFlow<Boolean> = _roomDeleted.asStateFlow()
     
     init {
-        StudyRoomTopicManager.subscribeToRoom(roomId)
         loadChatRoom()
     }
     
