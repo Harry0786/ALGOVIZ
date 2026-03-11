@@ -72,14 +72,19 @@ jobs:
             throw "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
           }
 
-          $escapedSdk = $sdkDir.Replace('\\', '\\\\')
-          @"
-          sdk.dir=$escapedSdk
-          RELEASE_STORE_FILE=../keystore/release.jks
-          RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-          "@ | Set-Content local.properties
+          $sdkDirNormalized = $sdkDir.Replace('\\', '/')
+          $lines = @(
+            "sdk.dir=$sdkDirNormalized",
+            "RELEASE_STORE_FILE=../keystore/release.jks",
+            "RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}",
+            "RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}",
+            "RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          )
+          [System.IO.File]::WriteAllLines("local.properties", $lines)
+
+      - name: Show generated local.properties
+        shell: pwsh
+        run: Get-Content local.properties
 
       - name: Build release APK
         shell: pwsh
