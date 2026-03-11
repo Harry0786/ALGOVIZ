@@ -144,6 +144,24 @@ jobs:
           git tag "${{ steps.meta.outputs.tag_name }}"
           git push origin HEAD:master "${{ steps.meta.outputs.tag_name }}"
 
+      - name: Sync jayesh with released master commit
+        shell: bash
+        run: |
+          git fetch origin jayesh || true
+
+          if git show-ref --verify --quiet refs/remotes/origin/jayesh; then
+            if git merge-base --is-ancestor origin/jayesh HEAD; then
+              git push origin HEAD:jayesh
+              echo "jayesh branch synced to release commit"
+            else
+              echo "jayesh not synced automatically because it has commits not in master"
+              echo "Please sync manually after reviewing branch divergence"
+            fi
+          else
+            git push origin HEAD:jayesh
+            echo "jayesh branch created and synced to release commit"
+          fi
+
       - name: Install publish dependencies
         shell: bash
         run: npm install firebase-admin@12 --no-save
