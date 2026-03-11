@@ -46,6 +46,7 @@ class AppUpdateViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
     private var lastUpdateInfo: UpdateInfo? = null
+    private var pendingInstallLocalUri: String? = null
 
     init {
         checkForUpdate()
@@ -136,16 +137,37 @@ class AppUpdateViewModel @Inject constructor(
         _updateState.value = UpdateState.UpdateAvailable(info)
     }
 
+    fun onAppResumed(context: Context) {
+        val localUri = pendingInstallLocalUri ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            return
+        }
+
+        val installResult = installDownloadedApk(context, localUri)
+        if (installResult != null) {
+            _updateState.value = UpdateState.DownloadFailed(installResult, lastUpdateInfo)
+            return
+        }
+
+        pendingInstallLocalUri = null
+        _updateState.value = UpdateState.UpToDate
+    }
+
     private fun installDownloadedApk(context: Context, localUriStr: String): String? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
         ) {
+            pendingInstallLocalUri = localUriStr
             Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = Uri.parse("package:${context.packageName}")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }.also { context.startActivity(it) }
-            return "Enable 'Install unknown apps' and try again."
+            return "Allow install permission and return to app. Installation will continue automatically."
         }
+
+        pendingInstallLocalUri = null
 
         val file = try {
             File(URI(localUriStr).path)
