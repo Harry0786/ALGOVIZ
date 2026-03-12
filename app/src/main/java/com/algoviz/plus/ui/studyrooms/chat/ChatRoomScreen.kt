@@ -70,6 +70,8 @@ fun ChatRoomScreen(
     // Track message count to only scroll on new messages, not on every state change
     var lastMessageCount by remember { mutableStateOf(0) }
     var lastNotifiedMessageId by remember { mutableStateOf<String?>(null) }
+    var lastIncomingAlertAt by remember { mutableLongStateOf(0L) }
+    val incomingAlertCooldownMs = 2500L
 
 
     
@@ -123,8 +125,14 @@ fun ChatRoomScreen(
             return@LaunchedEffect
         }
 
-        if (latestMessage.id != lastNotifiedMessageId && latestMessage.userId != state.currentUserId) {
+        val now = System.currentTimeMillis()
+        if (
+            latestMessage.id != lastNotifiedMessageId &&
+            latestMessage.userId != state.currentUserId &&
+            now - lastIncomingAlertAt >= incomingAlertCooldownMs
+        ) {
             snackbarHostState.showSnackbar("${latestMessage.userName}: ${latestMessage.content.take(80)}")
+            lastIncomingAlertAt = now
         }
 
         lastNotifiedMessageId = latestMessage.id

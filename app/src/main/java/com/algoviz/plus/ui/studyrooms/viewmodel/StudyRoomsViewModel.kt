@@ -76,22 +76,25 @@ class StudyRoomsViewModel @Inject constructor(
                 }
                 
                 getStudyRoomsUseCase.search(query)
-                    .catch { e ->
-                        if (e !is CancellationException) {
-                            _uiState.value = StudyRoomsUiState.Error(e.message ?: "Search failed")
-                        }
+                    .combine(getStudyRoomsUseCase.myRooms(user.id)) { rooms, myRooms ->
+                        rooms to myRooms
                     }
-                    .collect { rooms ->
-                        val myRooms = getStudyRoomsUseCase.myRooms(user.id).firstOrNull() ?: emptyList()
-                        val unreadCounts = getStudyRoomsUseCase.unreadCounts(user.id).firstOrNull() ?: emptyMap()
-                        
-                        _uiState.value = StudyRoomsUiState.Success(
+                    .combine(getStudyRoomsUseCase.unreadCounts(user.id)) { (rooms, myRooms), unreadCounts ->
+                        StudyRoomsUiState.Success(
                             rooms = rooms,
                             myRooms = myRooms,
                             selectedCategory = null,
                             loadingRoomId = null,
                             unreadCounts = unreadCounts
                         )
+                    }
+                    .catch { e ->
+                        if (e !is CancellationException) {
+                            _uiState.value = StudyRoomsUiState.Error(e.message ?: "Search failed")
+                        }
+                    }
+                    .collect { state ->
+                        _uiState.value = state
                     }
             } catch (e: CancellationException) {
                 // Ignore cancellation exceptions - this is normal when switching between search/load

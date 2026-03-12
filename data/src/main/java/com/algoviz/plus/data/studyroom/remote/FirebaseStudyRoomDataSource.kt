@@ -126,40 +126,24 @@ class FirebaseStudyRoomDataSource @Inject constructor(
     }
 
     fun observeUnreadCounts(userId: String): Flow<Map<String, Int>> = callbackFlow {
-        val listener = firestore.collection(ROOMS_COLLECTION)
-            .whereEqualTo("isActive", true)
+        val listener = firestore.collectionGroup(MEMBERS_COLLECTION)
+            .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
                     return@addSnapshotListener
                 }
 
-                val allRooms = snapshot?.documents?.map { it.id } ?: emptyList()
-                if (allRooms.isEmpty()) {
-                    trySend(emptyMap())
-                    return@addSnapshotListener
-                }
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    val unreadByRoom = mutableMapOf<String, Int>()
-                    for (roomId in allRooms) {
-                        try {
-                            val memberDoc = firestore.collection(ROOMS_COLLECTION)
-                                .document(roomId)
-                                .collection(MEMBERS_COLLECTION)
-                                .document(userId)
-                                .get()
-                                .await()
-                            if (memberDoc.exists()) {
-                                val unread = (memberDoc.getLong("unreadCount") ?: 0L).toInt()
-                                unreadByRoom[roomId] = unread
-                            }
-                        } catch (_: Exception) {
-                            // Ignore individual room read failures.
-                        }
+                val unreadByRoom = snapshot?.documents
+                    ?.mapNotNull { doc ->
+                        val roomId = doc.reference.parent.parent?.id ?: return@mapNotNull null
+                        val unread = (doc.getLong("unreadCount") ?: 0L).toInt()
+                        roomId to unread
                     }
-                    trySend(unreadByRoom)
-                }
+                    ?.toMap()
+                    ?: emptyMap()
+
+                trySend(unreadByRoom)
             }
         awaitClose { listener.remove() }
     }

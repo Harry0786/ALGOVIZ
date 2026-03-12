@@ -40,7 +40,9 @@ fun StudyRoomsScreen(
     var searchQuery by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var previousUnreadCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var lastUnreadAlertAt by remember { mutableLongStateOf(0L) }
     var isRefreshing by remember { mutableStateOf(false) }
+    val unreadAlertCooldownMs = 3500L
     
     // Handle refresh state
     LaunchedEffect(uiState) {
@@ -58,7 +60,8 @@ fun StudyRoomsScreen(
                 unread > previousUnread
             }
 
-        if (increasedUnread.isNotEmpty()) {
+        val now = System.currentTimeMillis()
+        if (increasedUnread.isNotEmpty() && now - lastUnreadAlertAt >= unreadAlertCooldownMs) {
             if (increasedUnread.size == 1) {
                 val roomId = increasedUnread.keys.first()
                 val roomName = allRoomsById[roomId]?.name ?: "a room"
@@ -66,6 +69,7 @@ fun StudyRoomsScreen(
             } else {
                 snackbarHostState.showSnackbar("New messages in ${increasedUnread.size} rooms")
             }
+            lastUnreadAlertAt = now
         }
 
         previousUnreadCounts = successState.unreadCounts
