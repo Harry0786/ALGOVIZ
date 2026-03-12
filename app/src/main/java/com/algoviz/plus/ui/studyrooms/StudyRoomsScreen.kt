@@ -39,6 +39,7 @@ fun StudyRoomsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
+    var previousUnreadCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var isRefreshing by remember { mutableStateOf(false) }
     
     // Handle refresh state
@@ -46,6 +47,28 @@ fun StudyRoomsScreen(
         if (uiState is StudyRoomsUiState.Success || uiState is StudyRoomsUiState.Error) {
             isRefreshing = false
         }
+
+        val successState = uiState as? StudyRoomsUiState.Success ?: return@LaunchedEffect
+        val allRoomsById = (successState.rooms + successState.myRooms)
+            .associateBy { it.id }
+
+        val increasedUnread = successState.unreadCounts
+            .filter { (roomId, unread) ->
+                val previousUnread = previousUnreadCounts[roomId] ?: 0
+                unread > previousUnread
+            }
+
+        if (increasedUnread.isNotEmpty()) {
+            if (increasedUnread.size == 1) {
+                val roomId = increasedUnread.keys.first()
+                val roomName = allRoomsById[roomId]?.name ?: "a room"
+                snackbarHostState.showSnackbar("New message in $roomName")
+            } else {
+                snackbarHostState.showSnackbar("New messages in ${increasedUnread.size} rooms")
+            }
+        }
+
+        previousUnreadCounts = successState.unreadCounts
     }
     
     Scaffold(
