@@ -18,8 +18,7 @@ object StudyRoomMapper {
             id = dto.id,
             name = dto.name,
             description = dto.description,
-            category = RoomCategory.values().find { it.name == dto.category } 
-                ?: RoomCategory.GENERAL,
+            category = RoomCategory.fromStorageCategory(dto.category),
             createdBy = dto.createdBy,
             createdAt = dto.createdAt,
             memberCount = dto.memberCount,
@@ -89,7 +88,9 @@ object StudyRoomMapper {
             joinedAt = dto.joinedAt,
             isOnline = dto.isOnline,
             lastSeenAt = dto.lastSeenAt,
-            unreadCount = dto.unreadCount
+            unreadCount = dto.unreadCount,
+            isTyping = dto.isTyping,
+            typingAt = dto.typingAt
         )
     }
     
@@ -100,7 +101,9 @@ object StudyRoomMapper {
             joinedAt = member.joinedAt,
             isOnline = member.isOnline,
             lastSeenAt = member.lastSeenAt,
-            unreadCount = member.unreadCount
+            unreadCount = member.unreadCount,
+            isTyping = member.isTyping,
+            typingAt = member.typingAt
         )
     }
     

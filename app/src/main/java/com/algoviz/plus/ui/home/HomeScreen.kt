@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.algoviz.plus.BuildConfig
+import com.algoviz.plus.ui.notifications.InAppNotification
+import com.algoviz.plus.ui.notifications.InAppNotificationCenter
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,19 +79,35 @@ fun HomeScreen(
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     
     LaunchedEffect(authUiState) {
         when (authUiState) {
             is AuthUiState.PasswordChanged -> {
-                snackbarHostState.showSnackbar("Password changed successfully!")
+                InAppNotificationCenter.post(
+                    InAppNotification(
+                        title = "Password updated",
+                        message = "Your password was changed successfully.",
+                        type = com.algoviz.plus.ui.notifications.InAppNotificationType.Success,
+                        groupKey = "home_success_actions",
+                        dedupeKey = "home_pwd_changed"
+                    )
+                )
                 showChangePasswordDialog = false
                 authViewModel.clearError()
             }
             is AuthUiState.Error -> {
-                snackbarHostState.showSnackbar((authUiState as AuthUiState.Error).message)
+                val errorMessage = (authUiState as AuthUiState.Error).message
+                InAppNotificationCenter.post(
+                    InAppNotification(
+                        title = "Account action failed",
+                        message = errorMessage,
+                        type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                        groupKey = "home_account_errors",
+                        dedupeKey = "home_auth_error:$errorMessage"
+                    )
+                )
                 authViewModel.clearError()
             }
             else -> {}
@@ -150,11 +168,28 @@ fun HomeScreen(
                                         
                                         context.startActivity(Intent.createChooser(shareIntent, "Share AlgoViz+ App"))
                                     } else {
-                                        snackbarHostState.showSnackbar("Unable to share app")
+                                        InAppNotificationCenter.post(
+                                            InAppNotification(
+                                                title = "Share unavailable",
+                                                message = "The app package could not be prepared for sharing.",
+                                                type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                                                groupKey = "home_share_errors",
+                                                dedupeKey = "home_share_unable"
+                                            )
+                                        )
                                     }
                                 } catch (e: Exception) {
                                     e.printStackTrace()
-                                    snackbarHostState.showSnackbar("Error sharing app: ${e.message}")
+                                    val errorMessage = "Error sharing app: ${e.message}"
+                                    InAppNotificationCenter.post(
+                                        InAppNotification(
+                                            title = "Share failed",
+                                            message = errorMessage,
+                                            type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                                            groupKey = "home_share_errors",
+                                            dedupeKey = "home_share_error:${e.message}"
+                                        )
+                                    )
                                 }
                             }
                         },
@@ -168,7 +203,6 @@ fun HomeScreen(
         ) {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Scaffold(
-                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     containerColor = Color.Transparent
                 ) { _ ->
         Box(

@@ -45,6 +45,8 @@ interface StudyRoomRepository {
     fun getRoomMembers(roomId: String): Flow<List<RoomMember>>
     fun getUserPresence(userId: String): Flow<UserPresence?>
     suspend fun updateUserPresence(userId: String, isOnline: Boolean): Result<Unit>
+    suspend fun updateMemberPresence(roomId: String, userId: String, isOnline: Boolean): Result<Unit>
+    suspend fun updateTypingStatus(roomId: String, userId: String, isTyping: Boolean): Result<Unit>
     
     // Search
     fun searchRooms(query: String): Flow<List<StudyRoom>>

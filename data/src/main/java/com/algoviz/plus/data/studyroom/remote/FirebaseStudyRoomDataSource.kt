@@ -6,6 +6,7 @@ import com.algoviz.plus.data.studyroom.model.StudyRoomDto
 import com.algoviz.plus.data.studyroom.model.UserPresenceDto
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,21 @@ import javax.inject.Singleton
 class FirebaseStudyRoomDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+    private fun parseMillis(value: Any?): Long? {
+        return when (value) {
+            null -> null
+            is Long -> value
+            is Int -> value.toLong()
+            is Double -> value.toLong()
+            is Float -> value.toLong()
+            is Number -> value.toLong()
+            is com.google.firebase.Timestamp -> value.toDate().time
+            is java.util.Date -> value.time
+            is String -> value.toLongOrNull()
+            else -> null
+        }
+    }
+
     companion object {
         private const val ROOMS_COLLECTION = "study_rooms"
         private const val MESSAGES_COLLECTION = "messages"
@@ -126,26 +142,54 @@ class FirebaseStudyRoomDataSource @Inject constructor(
     }
 
     fun observeUnreadCounts(userId: String): Flow<Map<String, Int>> = callbackFlow {
-        val listener = firestore.collectionGroup(MEMBERS_COLLECTION)
-            .whereEqualTo("userId", userId)
+        val unreadByRoom = mutableMapOf<String, Int>()
+        val memberListeners = mutableMapOf<String, ListenerRegistration>()
+
+        val roomsListener = firestore.collection(ROOMS_COLLECTION)
+            .whereEqualTo("isActive", true)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
                     return@addSnapshotListener
                 }
 
-                val unreadByRoom = snapshot?.documents
-                    ?.mapNotNull { doc ->
-                        val roomId = doc.reference.parent.parent?.id ?: return@mapNotNull null
-                        val unread = (doc.getLong("unreadCount") ?: 0L).toInt()
-                        roomId to unread
-                    }
-                    ?.toMap()
-                    ?: emptyMap()
+                val activeRoomIds = snapshot?.documents?.map { it.id }?.toSet() ?: emptySet()
 
-                trySend(unreadByRoom)
+                val removedRoomIds = memberListeners.keys - activeRoomIds
+                removedRoomIds.forEach { roomId ->
+                    memberListeners.remove(roomId)?.remove()
+                    unreadByRoom.remove(roomId)
+                }
+
+                val newRoomIds = activeRoomIds - memberListeners.keys
+                newRoomIds.forEach { roomId ->
+                    val memberListener = firestore.collection(ROOMS_COLLECTION)
+                        .document(roomId)
+                        .collection(MEMBERS_COLLECTION)
+                        .document(userId)
+                        .addSnapshotListener { memberSnapshot, memberError ->
+                            if (memberError != null) {
+                                return@addSnapshotListener
+                            }
+
+                            if (memberSnapshot != null && memberSnapshot.exists()) {
+                                unreadByRoom[roomId] = (memberSnapshot.getLong("unreadCount") ?: 0L).toInt()
+                            } else {
+                                unreadByRoom.remove(roomId)
+                            }
+
+                            trySend(unreadByRoom.toMap())
+                        }
+                    memberListeners[roomId] = memberListener
+                }
+
+                trySend(unreadByRoom.toMap())
             }
-        awaitClose { listener.remove() }
+        awaitClose {
+            roomsListener.remove()
+            memberListeners.values.forEach { it.remove() }
+            memberListeners.clear()
+        }
     }
     
     suspend fun createRoom(roomDto: StudyRoomDto, creatorName: String): Result<String> = runCatching {
@@ -198,7 +242,9 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             joinedAt = System.currentTimeMillis(),
             isOnline = true,
             lastSeenAt = System.currentTimeMillis(),
-            unreadCount = 0
+            unreadCount = 0,
+            isTyping = false,
+            typingAt = null
         )
         memberRef.set(memberDto).await()
         
@@ -257,9 +303,12 @@ class FirebaseStudyRoomDataSource @Inject constructor(
 
         memberRef.set(
             mapOf(
+                "userId" to userId,
                 "lastSeenAt" to System.currentTimeMillis(),
                 "unreadCount" to 0,
-                "isOnline" to true
+                "isOnline" to true,
+                "isTyping" to false,
+                "typingAt" to null
             ),
             com.google.firebase.firestore.SetOptions.merge()
         ).await()
@@ -357,9 +406,12 @@ class FirebaseStudyRoomDataSource @Inject constructor(
                     batch.set(
                         member.reference,
                         mapOf(
+                            "userId" to messageDto.userId,
                             "unreadCount" to 0,
                             "lastSeenAt" to messageWithId.timestamp,
-                            "isOnline" to true
+                            "isOnline" to true,
+                            "isTyping" to false,
+                            "typingAt" to null
                         ),
                         com.google.firebase.firestore.SetOptions.merge()
                     )
@@ -401,6 +453,37 @@ class FirebaseStudyRoomDataSource @Inject constructor(
     
     // Member operations
     fun observeRoomMembers(roomId: String): Flow<List<RoomMemberDto>> = callbackFlow {
+        val presenceListeners = mutableMapOf<String, ListenerRegistration>()
+        val memberByUserId = mutableMapOf<String, RoomMemberDto>()
+        val presenceByUserId = mutableMapOf<String, UserPresenceDto?>()
+        val staleAfterMs = 120_000L
+        val typingStaleAfterMs = 5_000L
+
+        fun mergedMembers(): List<RoomMemberDto> {
+            val now = System.currentTimeMillis()
+            return memberByUserId.values.map { member ->
+                val presence = presenceByUserId[member.userId]
+                val isTypingFresh = member.isTyping && member.typingAt?.let { now - it <= typingStaleAfterMs } == true
+                val presenceOnline = presence?.isOnline == true
+                val memberOnline = member.isOnline
+                val presenceRecent = presence?.lastSeenAt?.let { now - it <= staleAfterMs } == true
+                val memberRecent = member.lastSeenAt?.let { now - it <= staleAfterMs } == true
+                val resolvedOnline = presenceOnline || memberOnline || presenceRecent || memberRecent || isTypingFresh
+                val lastSeen = maxOf(
+                    presence?.lastSeenAt ?: 0L,
+                    member.lastSeenAt ?: 0L,
+                    member.joinedAt
+                ).takeIf { it > 0L }
+
+                member.copy(
+                    isOnline = resolvedOnline,
+                    lastSeenAt = lastSeen,
+                    isTyping = isTypingFresh,
+                    typingAt = if (isTypingFresh) member.typingAt else null
+                )
+            }.sortedBy { it.userName.lowercase() }
+        }
+
         val listener = firestore.collection(ROOMS_COLLECTION)
             .document(roomId)
             .collection(MEMBERS_COLLECTION)
@@ -409,12 +492,81 @@ class FirebaseStudyRoomDataSource @Inject constructor(
                     close(error)
                     return@addSnapshotListener
                 }
-                val members = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(RoomMemberDto::class.java)
+
+                val latestMembers = snapshot?.documents?.mapNotNull { doc ->
+                    val userId = doc.getString("userId")?.takeIf { it.isNotBlank() } ?: doc.id
+                    val userName = doc.getString("userName") ?: return@mapNotNull null
+                    val joinedAt = parseMillis(doc.get("joinedAt")) ?: System.currentTimeMillis()
+                    val isOnline = doc.getBoolean("isOnline") ?: false
+                    val lastSeenAt = parseMillis(doc.get("lastSeenAt"))
+                    val unreadCount = (doc.getLong("unreadCount") ?: 0L).toInt()
+                    val isTyping = doc.getBoolean("isTyping") ?: false
+                    val typingAt = parseMillis(doc.get("typingAt"))
+
+                    RoomMemberDto(
+                        userId = userId,
+                        userName = userName,
+                        joinedAt = joinedAt,
+                        isOnline = isOnline,
+                        lastSeenAt = lastSeenAt,
+                        unreadCount = unreadCount,
+                        isTyping = isTyping,
+                        typingAt = typingAt
+                    )
                 } ?: emptyList()
-                trySend(members)
+
+                val latestUserIds = latestMembers.map { it.userId }.toSet()
+
+                memberByUserId.clear()
+                latestMembers.forEach { member ->
+                    memberByUserId[member.userId] = member
+                }
+
+                val removedUserIds = presenceListeners.keys - latestUserIds
+                removedUserIds.forEach { userId ->
+                    presenceListeners.remove(userId)?.remove()
+                    presenceByUserId.remove(userId)
+                }
+
+                val newUserIds = latestUserIds - presenceListeners.keys
+                newUserIds.forEach { userId ->
+                    val presenceListener = firestore.collection(PRESENCE_COLLECTION)
+                        .document(userId)
+                        .addSnapshotListener { presenceSnapshot, _ ->
+                            val presence = if (presenceSnapshot != null && presenceSnapshot.exists()) {
+                                val isOnline = presenceSnapshot.getBoolean("isOnline") ?: false
+                                val lastSeenAt = parseMillis(presenceSnapshot.get("lastSeenAt")) ?: 0L
+                                UserPresenceDto(
+                                    userId = userId,
+                                    isOnline = isOnline,
+                                    lastSeenAt = lastSeenAt
+                                )
+                            } else {
+                                null
+                            }
+                            presenceByUserId[userId] = presence
+                            trySend(mergedMembers())
+                        }
+                    presenceListeners[userId] = presenceListener
+                }
+
+                trySend(mergedMembers())
             }
-        awaitClose { listener.remove() }
+
+        val freshnessTickerJob = CoroutineScope(Dispatchers.Default).launch {
+            while (true) {
+                kotlinx.coroutines.delay(3_000L)
+                trySend(mergedMembers())
+            }
+        }
+        awaitClose {
+            freshnessTickerJob.cancel()
+            listener.remove()
+            presenceListeners.values.forEach { it.remove() }
+            presenceListeners.clear()
+            memberByUserId.clear()
+            presenceByUserId.clear()
+        }
     }
     
     fun observeUserPresence(userId: String): Flow<UserPresenceDto?> = callbackFlow {
@@ -425,7 +577,17 @@ class FirebaseStudyRoomDataSource @Inject constructor(
                     close(error)
                     return@addSnapshotListener
                 }
-                val presence = snapshot?.toObject(UserPresenceDto::class.java)
+                val presence = if (snapshot != null && snapshot.exists()) {
+                    val isOnline = snapshot.getBoolean("isOnline") ?: false
+                    val lastSeenAt = parseMillis(snapshot.get("lastSeenAt")) ?: 0L
+                    UserPresenceDto(
+                        userId = userId,
+                        isOnline = isOnline,
+                        lastSeenAt = lastSeenAt
+                    )
+                } else {
+                    null
+                }
                 trySend(presence)
             }
         awaitClose { listener.remove() }
@@ -441,6 +603,42 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             .document(userId)
             .set(presenceDto)
             .await()
+    }
+
+    suspend fun updateMemberPresence(roomId: String, userId: String, isOnline: Boolean): Result<Unit> = runCatching {
+        val memberRef = firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .collection(MEMBERS_COLLECTION)
+            .document(userId)
+
+        memberRef.set(
+            mapOf(
+                "userId" to userId,
+                "isOnline" to isOnline,
+                "lastSeenAt" to System.currentTimeMillis()
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        ).await()
+    }
+
+    suspend fun updateTypingStatus(roomId: String, userId: String, isTyping: Boolean): Result<Unit> = runCatching {
+        val memberRef = firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .collection(MEMBERS_COLLECTION)
+            .document(userId)
+
+        val now = System.currentTimeMillis()
+
+        memberRef.set(
+            mapOf(
+                "userId" to userId,
+                "isOnline" to true,
+                "isTyping" to isTyping,
+                "typingAt" to now,
+                "lastSeenAt" to now
+            ),
+            com.google.firebase.firestore.SetOptions.merge()
+        ).await()
     }
     
     // Search

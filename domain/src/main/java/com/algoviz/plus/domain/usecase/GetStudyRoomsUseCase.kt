@@ -31,6 +31,14 @@ class GetStudyRoomsUseCase @Inject constructor(
     suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> {
         return repository.markRoomAsRead(roomId, userId)
     }
+
+    suspend fun setMemberPresence(roomId: String, userId: String, isOnline: Boolean): Result<Unit> {
+        return repository.updateMemberPresence(roomId, userId, isOnline)
+    }
+
+    suspend fun setTypingStatus(roomId: String, userId: String, isTyping: Boolean): Result<Unit> {
+        return repository.updateTypingStatus(roomId, userId, isTyping)
+    }
     
     fun search(query: String): Flow<List<StudyRoom>> {
         return repository.searchRooms(query)

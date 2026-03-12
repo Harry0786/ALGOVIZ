@@ -135,6 +135,14 @@ class StudyRoomRepositoryImpl @Inject constructor(
     override suspend fun updateUserPresence(userId: String, isOnline: Boolean): Result<Unit> {
         return dataSource.updateUserPresence(userId, isOnline)
     }
+
+    override suspend fun updateMemberPresence(roomId: String, userId: String, isOnline: Boolean): Result<Unit> {
+        return dataSource.updateMemberPresence(roomId, userId, isOnline)
+    }
+
+    override suspend fun updateTypingStatus(roomId: String, userId: String, isTyping: Boolean): Result<Unit> {
+        return dataSource.updateTypingStatus(roomId, userId, isTyping)
+    }
     
     override fun searchRooms(query: String): Flow<List<StudyRoom>> {
         return dataSource.searchRooms(query).map { rooms ->

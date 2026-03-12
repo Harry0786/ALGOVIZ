@@ -75,14 +75,24 @@ class StudyRoomsViewModel @Inject constructor(
                     return@launch
                 }
                 
-                getStudyRoomsUseCase.search(query)
-                    .combine(getStudyRoomsUseCase.myRooms(user.id)) { rooms, myRooms ->
-                        rooms to myRooms
+                val normalizedQuery = query.trim()
+                getStudyRoomsUseCase()
+                    .combine(getStudyRoomsUseCase.myRooms(user.id)) { allRooms, myRooms ->
+                        val roomMatches: (com.algoviz.plus.domain.model.StudyRoom) -> Boolean = { room ->
+                            room.name.contains(normalizedQuery, ignoreCase = true) ||
+                                room.description.contains(normalizedQuery, ignoreCase = true) ||
+                                room.category.displayName.contains(normalizedQuery, ignoreCase = true)
+                        }
+
+                        val filteredAllRooms = allRooms.filter(roomMatches)
+                        val filteredMyRooms = myRooms.filter(roomMatches)
+
+                        filteredAllRooms to filteredMyRooms
                     }
-                    .combine(getStudyRoomsUseCase.unreadCounts(user.id)) { (rooms, myRooms), unreadCounts ->
+                    .combine(getStudyRoomsUseCase.unreadCounts(user.id)) { (filteredAllRooms, filteredMyRooms), unreadCounts ->
                         StudyRoomsUiState.Success(
-                            rooms = rooms,
-                            myRooms = myRooms,
+                            rooms = filteredAllRooms,
+                            myRooms = filteredMyRooms,
                             selectedCategory = null,
                             loadingRoomId = null,
                             unreadCounts = unreadCounts

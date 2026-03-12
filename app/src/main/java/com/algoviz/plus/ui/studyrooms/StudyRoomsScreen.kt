@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,42 +39,6 @@ fun StudyRoomsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
-    val snackbarHostState = remember { SnackbarHostState() }
-    var previousUnreadCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var lastUnreadAlertAt by remember { mutableLongStateOf(0L) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    val unreadAlertCooldownMs = 3500L
-    
-    // Handle refresh state
-    LaunchedEffect(uiState) {
-        if (uiState is StudyRoomsUiState.Success || uiState is StudyRoomsUiState.Error) {
-            isRefreshing = false
-        }
-
-        val successState = uiState as? StudyRoomsUiState.Success ?: return@LaunchedEffect
-        val allRoomsById = (successState.rooms + successState.myRooms)
-            .associateBy { it.id }
-
-        val increasedUnread = successState.unreadCounts
-            .filter { (roomId, unread) ->
-                val previousUnread = previousUnreadCounts[roomId] ?: 0
-                unread > previousUnread
-            }
-
-        val now = System.currentTimeMillis()
-        if (increasedUnread.isNotEmpty() && now - lastUnreadAlertAt >= unreadAlertCooldownMs) {
-            if (increasedUnread.size == 1) {
-                val roomId = increasedUnread.keys.first()
-                val roomName = allRoomsById[roomId]?.name ?: "a room"
-                snackbarHostState.showSnackbar("New message in $roomName")
-            } else {
-                snackbarHostState.showSnackbar("New messages in ${increasedUnread.size} rooms")
-            }
-            lastUnreadAlertAt = now
-        }
-
-        previousUnreadCounts = successState.unreadCounts
-    }
     
     Scaffold(
         modifier = Modifier.background(
@@ -85,7 +50,6 @@ fun StudyRoomsScreen(
                 )
             )
         ),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Transparent
     ) { paddingValues ->
         Box(
@@ -357,137 +321,163 @@ fun RoomCard(
     onActionClick: () -> Unit,
     isLoading: Boolean = false
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (isJoined) Modifier.clickable(onClick = onClick)
-                else Modifier
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.08f)
-        )
-    ) {
-        Column(
+    Box {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .then(if (isJoined) Modifier.clickable(onClick = onClick) else Modifier),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White.copy(alpha = 0.08f)
+            )
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = room.name,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                        if (room.isPrivate) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = "Private",
-                                tint = Color(0xFFFBBF24),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                    Text(
-                        text = room.category.displayName,
-                        fontSize = 13.sp,
-                        color = Color(0xFF5EEAD4)
-                    )
-                    if (isJoined && unreadCount > 0) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            color = Color(0xFF22C55E),
-                            shape = RoundedCornerShape(999.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                text = room.name,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                            if (room.isPrivate) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = "Private",
+                                    tint = Color(0xFFFBBF24),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = room.category.displayName,
+                            fontSize = 13.sp,
+                            color = Color(0xFF5EEAD4)
+                        )
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Button(
+                            onClick = onActionClick,
+                            enabled = !isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isJoined) Color(0xFFEF4444) else Color(0xFF5EEAD4),
+                                contentColor = if (isJoined) Color.White else Color(0xFF1A1344)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(if (isJoined) "Leave" else "Join")
+                            }
+                        }
+
+                        if (isJoined && unreadCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .offset(y = 44.dp)
+                            ) {
+                                UnreadCountBadge(unreadCount = unreadCount)
+                            }
                         }
                     }
                 }
-                
-                Button(
-                    onClick = onActionClick,
-                    enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isJoined) Color(0xFFEF4444) else Color(0xFF5EEAD4),
-                        contentColor = if (isJoined) Color.White else Color(0xFF1A1344)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = room.description,
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.65f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(if (isJoined) "Leave" else "Join")
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = room.description,
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.65f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 18.sp
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${room.memberCount}/${room.maxMembers}",
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.5f)
-                    )
-                }
-                
-                room.lastMessageAt?.let { timestamp ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Notifications,
+                            Icons.Default.Person,
                             contentDescription = null,
                             tint = Color.White.copy(alpha = 0.5f),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = formatTime(timestamp),
+                            text = "${room.memberCount}/${room.maxMembers}",
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.5f)
                         )
                     }
+
+                    room.lastMessageAt?.let { timestamp ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = formatTime(timestamp),
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
                 }
             }
+        }
+
+    }
+}
+
+@Composable
+private fun UnreadCountBadge(unreadCount: Int) {
+    Surface(
+        color = Color(0xFFFACC15),
+        shape = CircleShape,
+        modifier = Modifier.size(24.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (unreadCount > 99) "9+" else unreadCount.toString(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
         }
     }
 }

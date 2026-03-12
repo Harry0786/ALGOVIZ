@@ -1,5 +1,7 @@
 package com.algoviz.plus.domain.model
 
+import java.util.Locale
+
 data class StudyRoom(
     val id: String,
     val name: String,
@@ -16,22 +18,42 @@ data class StudyRoom(
 )
 
 enum class RoomCategory(val displayName: String) {
-    SORTING("Sorting Algorithms"),
-    SEARCHING("Searching & Hashing"),
-    GRAPH("Graph Algorithms"),
-    TREE("Tree & BST"),
-    DYNAMIC_PROGRAMMING("Dynamic Programming"),
-    GREEDY("Greedy Algorithms"),
-    BACKTRACKING("Backtracking"),
-    STRINGS("String Algorithms"),
-    ARRAYS("Arrays & Lists"),
-    LINKED_LISTS("Linked Lists"),
-    STACKS_QUEUES("Stacks & Queues"),
-    HEAPS("Heaps & Priority Queues"),
-    RECURSION("Recursion"),
-    MATH("Mathematical Algorithms"),
-    BIT_MANIPULATION("Bit Manipulation"),
-    SYSTEM_DESIGN("System Design"),
-    CODING_INTERVIEW("Coding Interview Prep"),
-    GENERAL("General Discussion")
+    GENERAL("General Discussion"),
+    ACADEMICS("Academics & Subjects"),
+    PROBLEM_SOLVING("Problem Solving & DSA"),
+    PROJECTS("Projects & Collaboration"),
+    INTERNSHIPS("Internships & Placements"),
+    CAREER("Career & Higher Studies"),
+    EVENTS("Events, Clubs & Hackathons"),
+    TECH_NEWS("Tech News & Trends"),
+    RESOURCES("Resources & Notes"),
+    HELP_DESK("Help Desk & Doubts");
+
+    companion object {
+        fun fromStorageCategory(rawCategory: String): RoomCategory {
+            return when (rawCategory.uppercase(Locale.US)) {
+                // Legacy coding-focused values mapped into broader buckets.
+                "SORTING",
+                "SEARCHING",
+                "GRAPH",
+                "TREE",
+                "DYNAMIC_PROGRAMMING",
+                "GREEDY",
+                "BACKTRACKING",
+                "STRINGS",
+                "ARRAYS",
+                "LINKED_LISTS",
+                "STACKS_QUEUES",
+                "HEAPS",
+                "RECURSION",
+                "MATH",
+                "BIT_MANIPULATION",
+                "CODING_INTERVIEW" -> PROBLEM_SOLVING
+
+                "SYSTEM_DESIGN" -> PROJECTS
+
+                else -> entries.find { it.name == rawCategory } ?: GENERAL
+            }
+        }
+    }
 }

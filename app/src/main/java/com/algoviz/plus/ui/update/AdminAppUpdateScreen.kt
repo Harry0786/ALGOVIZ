@@ -26,8 +26,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -44,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.algoviz.plus.ui.notifications.InAppNotification
+import com.algoviz.plus.ui.notifications.InAppNotificationCenter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,15 +52,30 @@ fun AdminAppUpdateScreen(
     viewModel: AdminAppUpdateViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.message, state.error) {
         state.message?.let {
-            snackbarHostState.showSnackbar(it)
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Update published",
+                    message = it,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Update,
+                    groupKey = "admin_update_success",
+                    dedupeKey = "admin_update_msg:$it"
+                )
+            )
             viewModel.clearMessage()
         }
         state.error?.let {
-            snackbarHostState.showSnackbar(it)
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Update publish failed",
+                    message = it,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                    groupKey = "admin_update_errors",
+                    dedupeKey = "admin_update_err:$it"
+                )
+            )
             viewModel.clearMessage()
         }
     }
@@ -75,7 +90,6 @@ fun AdminAppUpdateScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

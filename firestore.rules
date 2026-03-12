@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isRoomCreator(roomId) {
+      return get(/databases/$(database)/documents/study_rooms/$(roomId)).data.createdBy == request.auth.uid;
+    }
+
+    function isRoomMember(roomId) {
+      return exists(/databases/$(database)/documents/study_rooms/$(roomId)/members/$(request.auth.uid));
+    }
+
+    // Global presence
+    match /user_presence/{userId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Study rooms
+    match /study_rooms/{roomId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      // Members can update room metadata (lastMessage, lastMessageAt, memberCount flows)
+      allow update: if signedIn() && (isRoomMember(roomId) || isRoomCreator(roomId));
+      allow delete: if signedIn() && isRoomCreator(roomId);
+
+      // Room members presence/unread/typing
+      match /members/{memberId} {
+        allow read: if signedIn();
+        // Join room (self) or creator-managed member bootstrap
+        allow create: if signedIn() && (request.auth.uid == memberId || isRoomCreator(roomId));
+        // Needed for unread increments and presence/typing updates from room participants
+        allow update: if signedIn() && (isRoomMember(roomId) || isRoomCreator(roomId));
+        allow delete: if signedIn() && (request.auth.uid == memberId || isRoomCreator(roomId));
+      }
+
+      // Messages
+      match /messages/{messageId} {
+        allow read: if signedIn() && isRoomMember(roomId);
+        allow create: if signedIn()
+          && isRoomMember(roomId)
+          && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if signedIn()
+          && (resource.data.userId == request.auth.uid || isRoomCreator(roomId));
+      }
+    }
+  }
+}

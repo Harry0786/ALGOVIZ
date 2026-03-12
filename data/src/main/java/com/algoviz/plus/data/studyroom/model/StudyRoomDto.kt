@@ -36,7 +36,9 @@ data class RoomMemberDto(
     val joinedAt: Long = 0L,
     val isOnline: Boolean = false,
     val lastSeenAt: Long? = null,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val isTyping: Boolean = false,
+    val typingAt: Long? = null
 )
 
 data class UserPresenceDto(

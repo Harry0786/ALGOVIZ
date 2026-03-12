@@ -1,6 +1,5 @@
 package com.algoviz.plus.ui.studyrooms.chat
 
-import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -8,8 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,18 +32,54 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.algoviz.plus.domain.model.Message
 import com.algoviz.plus.domain.model.MessageType
+import com.algoviz.plus.ui.notifications.ActiveChatRoomTracker
+import com.algoviz.plus.ui.notifications.InAppNotification
+import com.algoviz.plus.ui.notifications.InAppNotificationCenter
 import com.algoviz.plus.ui.studyrooms.chat.state.ChatRoomUiState
 import com.algoviz.plus.ui.studyrooms.chat.viewmodel.ChatRoomViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+
+private object ChatThemeColors {
+    val BackgroundTop = Color(0xFF251B5E)
+    val BackgroundMid = Color(0xFF2D1B69)
+    val BackgroundBottom = Color(0xFF3D2080)
+    val SurfacePrimary = Color(0xFF120B35)
+    val SurfaceSecondary = Color(0xFF2D1B69)
+    val AccentMint = Color(0xFF5EEAD4)
+    val AccentMintDark = Color(0xFF14B8A6)
+    val AccentIndigo = Color(0xFF4F46E5)
+    val AccentIndigoLight = Color(0xFF6366F1)
+    val TextSecondary = Color(0xFF9CA3AF)
+    val Error = Color(0xFFEF4444)
+    val SnackbarSurface = Color(0xFF21124E)
+    val OwnMessageBubble = Color(0xFF0F766E)
+    val SystemMessage = Color(0xFFFDE68A)
+}
+
+private val ReceiverSenderPalette: List<Pair<Color, Color>> = listOf(
+    Color(0xFF60A5FA) to Color(0xFF3B82F6),
+    Color(0xFFF472B6) to Color(0xFFEC4899),
+    Color(0xFF34D399) to Color(0xFF10B981),
+    Color(0xFFFBBF24) to Color(0xFFF59E0B),
+    Color(0xFFA78BFA) to Color(0xFF8B5CF6),
+    Color(0xFF22D3EE) to Color(0xFF06B6D4),
+    Color(0xFFFB7185) to Color(0xFFF43F5E),
+    Color(0xFF4ADE80) to Color(0xFF22C55E)
+)
+
+private fun receiverSenderAccent(userId: String): Pair<Color, Color> {
+    val index = (userId.hashCode() and Int.MAX_VALUE) % ReceiverSenderPalette.size
+    return ReceiverSenderPalette[index]
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,32 +95,48 @@ fun ChatRoomScreen(
     val deleteRoomError by viewModel.deleteRoomError.collectAsStateWithLifecycle()
     val roomDeleted by viewModel.roomDeleted.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var showMemberList by remember { mutableStateOf(false) }
     var showCodeSnippetDialog by remember { mutableStateOf(false) }
     var showDeleteGroupConfirm by remember { mutableStateOf(false) }
+    val currentRoomId = (uiState as? ChatRoomUiState.Success)?.room?.id
+
+    DisposableEffect(currentRoomId) {
+        ActiveChatRoomTracker.setActiveRoom(currentRoomId)
+        onDispose {
+            ActiveChatRoomTracker.setActiveRoom(null)
+        }
+    }
     
     // Track message count to only scroll on new messages, not on every state change
     var lastMessageCount by remember { mutableStateOf(0) }
-    var lastNotifiedMessageId by remember { mutableStateOf<String?>(null) }
-    var lastIncomingAlertAt by remember { mutableLongStateOf(0L) }
-    val incomingAlertCooldownMs = 2500L
 
-
-    
     // Show error when message sending fails
     LaunchedEffect(sendMessageError) {
         sendMessageError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Message not sent",
+                    message = error,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                    groupKey = "chat_message_errors",
+                    dedupeKey = "chat_error:$error"
+                )
+            )
             viewModel.clearSendMessageError()
         }
     }
 
     LaunchedEffect(deleteRoomError) {
         deleteRoomError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Group action failed",
+                    message = error,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                    groupKey = "chat_group_errors",
+                    dedupeKey = "chat_delete_error:$error"
+                )
+            )
             viewModel.clearDeleteRoomError()
         }
     }
@@ -94,7 +145,15 @@ fun ChatRoomScreen(
         if (roomDeleted) {
             showMemberList = false
             showDeleteGroupConfirm = false
-            snackbarHostState.showSnackbar("Group deleted")
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Group removed",
+                    message = "This study group was deleted successfully.",
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Success,
+                    groupKey = "chat_group_success",
+                    dedupeKey = "chat_group_deleted:${currentRoomId ?: "unknown"}"
+                )
+            )
             viewModel.clearRoomDeletedEvent()
             onBackClick()
         }
@@ -116,30 +175,7 @@ fun ChatRoomScreen(
         lastMessageCount = messageCount
     }
 
-    LaunchedEffect(uiState) {
-        val state = uiState as? ChatRoomUiState.Success ?: return@LaunchedEffect
-        val latestMessage = state.messages.lastOrNull() ?: return@LaunchedEffect
-
-        if (lastNotifiedMessageId == null) {
-            lastNotifiedMessageId = latestMessage.id
-            return@LaunchedEffect
-        }
-
-        val now = System.currentTimeMillis()
-        if (
-            latestMessage.id != lastNotifiedMessageId &&
-            latestMessage.userId != state.currentUserId &&
-            now - lastIncomingAlertAt >= incomingAlertCooldownMs
-        ) {
-            snackbarHostState.showSnackbar("${latestMessage.userName}: ${latestMessage.content.take(80)}")
-            lastIncomingAlertAt = now
-        }
-
-        lastNotifiedMessageId = latestMessage.id
-    }
-
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             when (val state = uiState) {
                 is ChatRoomUiState.Success -> {
@@ -159,25 +195,25 @@ fun ChatRoomScreen(
                                         Icons.Default.Group,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
-                                        tint = Color(0xFF5EEAD4)
+                                        tint = ChatThemeColors.AccentMint
                                     )
                                     Text(
                                         text = "${state.room.memberCount} members",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 12.sp,
-                                        color = Color(0xFF9CA3AF)
+                                        color = ChatThemeColors.TextSecondary
                                     )
                                     Text(
                                         text = "•",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 12.sp,
-                                        color = Color(0xFF9CA3AF)
+                                        color = ChatThemeColors.TextSecondary
                                     )
                                     Text(
                                         text = state.room.category.displayName,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 12.sp,
-                                        color = Color(0xFF9CA3AF)
+                                        color = ChatThemeColors.TextSecondary
                                     )
                                 }
                             }
@@ -193,12 +229,14 @@ fun ChatRoomScreen(
                             }
                         },
         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color(0xFF1A1344),
+                            containerColor = ChatThemeColors.SurfacePrimary,
                             titleContentColor = Color.White,
-                            navigationIconContentColor = Color(0xFF5EEAD4),
-                            actionIconContentColor = Color(0xFF5EEAD4)
+                            navigationIconContentColor = ChatThemeColors.AccentMint,
+                            actionIconContentColor = ChatThemeColors.AccentMint
                         ),
-                        modifier = Modifier.shadow(8.dp)
+                        modifier = Modifier
+                            .shadow(10.dp)
+                            .background(ChatThemeColors.SurfacePrimary)
                     )
                 }
                 else -> {
@@ -210,21 +248,36 @@ fun ChatRoomScreen(
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color(0xFF1A1344),
+                            containerColor = ChatThemeColors.SurfacePrimary,
                             titleContentColor = Color.White,
-                            navigationIconContentColor = Color(0xFF5EEAD4)
+                            navigationIconContentColor = ChatThemeColors.AccentMint
                         ),
-                        modifier = Modifier.shadow(8.dp)
+                        modifier = Modifier
+                            .shadow(10.dp)
+                            .background(ChatThemeColors.SurfacePrimary)
                     )
                 }
             }
+
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.12f),
+                thickness = 1.dp
+            )
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFF0D0B1E))
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            ChatThemeColors.BackgroundTop,
+                            ChatThemeColors.BackgroundMid,
+                            ChatThemeColors.BackgroundBottom
+                        )
+                    )
+                )
         ) {
             when (val state = uiState) {
                 is ChatRoomUiState.Loading -> {
@@ -233,6 +286,20 @@ fun ChatRoomScreen(
                     )
                 }
                 is ChatRoomUiState.Success -> {
+                    val typingUsers = state.members
+                        .filter { it.userId != state.currentUserId && it.isTyping }
+                        .map { it.userName }
+                        .distinct()
+                    val timelineItems = remember(state.messages) {
+                        buildChatTimeline(state.messages)
+                    }
+                    val senderAccentByUserId = remember(state.members, state.currentUserId) {
+                        buildRoomSenderAccentMap(
+                            memberIds = state.members.map { it.userId },
+                            currentUserId = state.currentUserId
+                        )
+                    }
+
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Messages list
                         LazyColumn(
@@ -263,8 +330,8 @@ fun ChatRoomScreen(
                                                     .background(
                                                         brush = Brush.linearGradient(
                                                             colors = listOf(
-                                                                Color(0xFF5EEAD4).copy(alpha = 0.2f),
-                                                                Color(0xFF6366F1).copy(alpha = 0.2f)
+                                                                ChatThemeColors.AccentMint.copy(alpha = 0.2f),
+                                                                ChatThemeColors.AccentIndigoLight.copy(alpha = 0.2f)
                                                             )
                                                         )
                                                     ),
@@ -273,7 +340,7 @@ fun ChatRoomScreen(
                                                 Icon(
                                                     imageVector = Icons.Default.Forum,
                                                     contentDescription = null,
-                                                    tint = Color(0xFF5EEAD4),
+                                                    tint = ChatThemeColors.AccentMint,
                                                     modifier = Modifier.size(40.dp)
                                                 )
                                             }
@@ -286,7 +353,7 @@ fun ChatRoomScreen(
                                             Text(
                                                 text = "Share ideas, ask questions, or discuss algorithms.\nUse code snippets, media, and voice messages!",
                                                 fontSize = 13.sp,
-                                                color = Color(0xFF9CA3AF),
+                                                color = ChatThemeColors.TextSecondary,
                                                 textAlign = TextAlign.Center,
                                                 lineHeight = 18.sp
                                             )
@@ -312,13 +379,34 @@ fun ChatRoomScreen(
                                     }
                                 }
                             }
-                            items(state.messages) { message ->
-                                MessageBubble(
-                                    message = message,
-                                    isOwnMessage = message.userId == state.currentUserId
-                                )
+                            items(
+                                items = timelineItems,
+                                key = { item ->
+                                    when (item) {
+                                        is ChatTimelineItem.DateHeader -> "date-${item.dayStartMillis}"
+                                        is ChatTimelineItem.MessageItem -> item.message.id
+                                    }
+                                }
+                            ) { item ->
+                                when (item) {
+                                    is ChatTimelineItem.DateHeader -> {
+                                        ChatDateSeparator(dayStartMillis = item.dayStartMillis)
+                                    }
+                                    is ChatTimelineItem.MessageItem -> {
+                                        MessageBubble(
+                                            message = item.message,
+                                            isOwnMessage = item.message.userId == state.currentUserId,
+                                            senderAccent = senderAccentByUserId[item.message.userId]
+                                        )
+                                    }
+                                }
                             }
                         }
+
+                        TypingIndicator(
+                            typingUsers = typingUsers,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         
                         // Message input
                         MessageInputBar(
@@ -345,12 +433,12 @@ fun ChatRoomScreen(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = "Error",
                             modifier = Modifier.size(48.dp),
-                            tint = Color(0xFFEF4444)
+                            tint = ChatThemeColors.Error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = state.message,
-                            color = Color(0xFFEF4444),
+                            color = ChatThemeColors.Error,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 24.dp)
@@ -362,17 +450,23 @@ fun ChatRoomScreen(
                         ) {
                             Button(
                                 onClick = { viewModel.retryLoadChatRoom() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5EEAD4)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ChatThemeColors.AccentMint,
+                                    contentColor = ChatThemeColors.SurfacePrimary
+                                ),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Retry", color = Color.White)
+                                Text("Retry")
                             }
                             Button(
                                 onClick = onBackClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C7280)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ChatThemeColors.SurfaceSecondary,
+                                    contentColor = Color.White
+                                ),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Back", color = Color.White)
+                                Text("Back")
                             }
                         }
                     }
@@ -385,9 +479,14 @@ fun ChatRoomScreen(
     if (showMemberList) {
         val successState = (uiState as? ChatRoomUiState.Success)
         if (successState != null) {
+            val creatorName = successState.members
+                .firstOrNull { member -> member.userId == successState.room.createdBy }
+                ?.userName
+                ?: if (successState.room.createdBy == successState.currentUserId) "You" else "Unknown member"
+
             ModalBottomSheet(
                 onDismissRequest = { showMemberList = false },
-                containerColor = Color(0xFF1A1344)
+                containerColor = ChatThemeColors.SurfacePrimary
             ) {
                 Column(
                     modifier = Modifier
@@ -408,7 +507,7 @@ fun ChatRoomScreen(
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
-                                        colors = listOf(Color(0xFF5EEAD4), Color(0xFF14B8A6))
+                                        colors = listOf(ChatThemeColors.AccentMint, ChatThemeColors.AccentMintDark)
                                     )
                                 ),
                             contentAlignment = Alignment.Center
@@ -431,7 +530,7 @@ fun ChatRoomScreen(
                         Text(
                             text = successState.room.description.ifBlank { "No description" },
                             fontSize = 13.sp,
-                            color = Color(0xFF9CA3AF),
+                            color = ChatThemeColors.TextSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
@@ -443,17 +542,13 @@ fun ChatRoomScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         RoomInfoItem(
                             icon = Icons.Default.Info,
-                            label = "Room Settings",
-                            value = "Category: ${successState.room.category.displayName}"
+                            label = "Category",
+                            value = successState.room.category.displayName
                         )
                         RoomInfoItem(
                             icon = Icons.Default.AdminPanelSettings,
                             label = "Creator",
-                            value = if (successState.room.createdBy == successState.currentUserId) {
-                                "You"
-                            } else {
-                                successState.room.createdBy
-                            }
+                            value = creatorName
                         )
                         RoomInfoItem(
                             icon = Icons.Default.Group,
@@ -463,7 +558,7 @@ fun ChatRoomScreen(
                         RoomInfoItem(
                             icon = Icons.Default.Schedule,
                             label = "Created",
-                            value = formatMessageTime(successState.room.createdAt)
+                            value = formatDateTime(successState.room.createdAt)
                         )
                     }
 
@@ -527,18 +622,22 @@ fun ChatRoomScreen(
                                     .padding(12.dp)
                             ) {
                                 Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF5EEAD4)),
-                                    contentAlignment = Alignment.Center
+                                    modifier = Modifier.size(40.dp)
                                 ) {
-                                    Text(
-                                        text = member.userName.firstOrNull()?.uppercase() ?: "?",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clip(CircleShape)
+                                            .background(ChatThemeColors.AccentMint),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = member.userName.firstOrNull()?.uppercase() ?: "?",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -547,24 +646,6 @@ fun ChatRoomScreen(
                                         fontSize = 14.sp,
                                         color = Color.White
                                     )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    if (member.isOnline) Color(0xFF10B981) else Color.Gray
-                                                )
-                                        )
-                                        Text(
-                                            text = if (member.isOnline) "Online" else "Offline",
-                                            fontSize = 11.sp,
-                                            color = if (member.isOnline) Color(0xFF10B981) else Color.Gray
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -583,6 +664,9 @@ fun ChatRoomScreen(
                     showDeleteGroupConfirm = false
                 }
             },
+            containerColor = ChatThemeColors.SurfacePrimary,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFC7D2FE),
             title = { Text("Delete Group") },
             text = {
                 Text(
@@ -606,7 +690,7 @@ fun ChatRoomScreen(
                     onClick = { showDeleteGroupConfirm = false },
                     enabled = !isDeletingRoom
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", color = Color(0xFF5EEAD4))
                 }
             }
         )
@@ -618,6 +702,9 @@ fun ChatRoomScreen(
         
         AlertDialog(
             onDismissRequest = { showCodeSnippetDialog = false },
+            containerColor = ChatThemeColors.SurfacePrimary,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFC7D2FE),
             title = {
                 Text(
                     "Send Code Snippet",
@@ -631,7 +718,7 @@ fun ChatRoomScreen(
                     Text(
                         text = "Language will be auto-detected",
                         fontSize = 12.sp,
-                        color = Color(0xFF5EEAD4),
+                        color = ChatThemeColors.AccentMint,
                         fontWeight = FontWeight.Medium
                     )
                     
@@ -647,6 +734,17 @@ fun ChatRoomScreen(
                         textStyle = LocalTextStyle.current.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.5f),
+                            unfocusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.35f),
+                            focusedBorderColor = ChatThemeColors.AccentMint,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                            focusedLabelColor = ChatThemeColors.AccentMint,
+                            unfocusedLabelColor = ChatThemeColors.TextSecondary,
+                            cursorColor = ChatThemeColors.AccentMint
                         )
                     )
                 }
@@ -662,7 +760,8 @@ fun ChatRoomScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4)
+                        containerColor = ChatThemeColors.AccentMint,
+                        contentColor = ChatThemeColors.SurfacePrimary
                     )
                 ) {
                     Text("Send")
@@ -670,10 +769,141 @@ fun ChatRoomScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCodeSnippetDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = ChatThemeColors.AccentMint)
                 }
             }
         )
+    }
+}
+
+private sealed interface ChatTimelineItem {
+    data class DateHeader(val dayStartMillis: Long) : ChatTimelineItem
+    data class MessageItem(val message: Message) : ChatTimelineItem
+}
+
+private fun buildChatTimeline(messages: List<Message>): List<ChatTimelineItem> {
+    if (messages.isEmpty()) return emptyList()
+
+    val items = mutableListOf<ChatTimelineItem>()
+    var previousDayStart: Long? = null
+
+    messages.forEach { message ->
+        val dayStart = startOfDayMillis(message.timestamp)
+        if (previousDayStart != dayStart) {
+            items += ChatTimelineItem.DateHeader(dayStartMillis = dayStart)
+            previousDayStart = dayStart
+        }
+        items += ChatTimelineItem.MessageItem(message)
+    }
+
+    return items
+}
+
+private fun startOfDayMillis(timestamp: Long): Long {
+    val calendar = Calendar.getInstance().apply {
+        timeInMillis = timestamp
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return calendar.timeInMillis
+}
+
+@Composable
+private fun ChatDateSeparator(dayStartMillis: Long) {
+    val label = remember(dayStartMillis) { formatChatDayLabel(dayStartMillis) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            color = Color(0xFF31206F).copy(alpha = 0.88f),
+            shape = RoundedCornerShape(999.dp),
+            tonalElevation = 2.dp,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
+            Text(
+                text = label,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+private fun formatChatDayLabel(dayStartMillis: Long): String {
+    val nowDayStart = startOfDayMillis(System.currentTimeMillis())
+    val diffDays = ((nowDayStart - dayStartMillis) / 86_400_000L).toInt()
+
+    return when (diffDays) {
+        0 -> "Today"
+        1 -> "Yesterday"
+        else -> SimpleDateFormat("EEE, dd MMM", Locale.getDefault()).format(Date(dayStartMillis))
+    }
+}
+
+@Composable
+private fun TypingIndicator(
+    typingUsers: List<String>,
+    modifier: Modifier = Modifier
+) {
+    var dots by remember { mutableStateOf("") }
+
+    LaunchedEffect(typingUsers.isNotEmpty()) {
+        if (!typingUsers.isNotEmpty()) {
+            dots = ""
+            return@LaunchedEffect
+        }
+
+        while (true) {
+            dots = when (dots) {
+                "" -> "."
+                "." -> ".."
+                ".." -> "..."
+                else -> ""
+            }
+            kotlinx.coroutines.delay(350)
+        }
+    }
+
+    AnimatedVisibility(
+        visible = typingUsers.isNotEmpty(),
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+        modifier = modifier
+    ) {
+        val typingText = when {
+            typingUsers.size == 1 -> "${typingUsers.first()} is typing$dots"
+            typingUsers.size == 2 -> "${typingUsers[0]} and ${typingUsers[1]} are typing$dots"
+            else -> "${typingUsers.size} people are typing$dots"
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = ChatThemeColors.AccentMint,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = typingText,
+                color = ChatThemeColors.AccentMint,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -688,7 +918,7 @@ fun AttachmentOption(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF2D1B69).copy(alpha = 0.5f)
+        color = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.5f)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -699,13 +929,13 @@ fun AttachmentOption(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF5EEAD4)),
+                    .background(ChatThemeColors.AccentMint),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = Color(0xFF1A1344),
+                    tint = ChatThemeColors.SurfacePrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -719,7 +949,7 @@ fun AttachmentOption(
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = ChatThemeColors.TextSecondary
                 )
             }
         }
@@ -729,8 +959,10 @@ fun AttachmentOption(
 @Composable
 fun MessageBubble(
     message: Message,
-    isOwnMessage: Boolean
+    isOwnMessage: Boolean,
+    senderAccent: Pair<Color, Color>? = null
 ) {
+    val (senderAccentLight, senderAccentDark) = senderAccent ?: receiverSenderAccent(message.userId)
     val isCodeSnippet =
         message.type == MessageType.CODE ||
             (message.content.startsWith("```") && message.content.endsWith("```"))
@@ -750,7 +982,7 @@ fun MessageBubble(
                     text = message.userName,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 11.sp,
-                    color = Color(0xFF5EEAD4)
+                    color = senderAccentLight
                 )
             }
         }
@@ -762,22 +994,26 @@ fun MessageBubble(
             // Receiver message - avatar on left
             if (!isOwnMessage) {
                 Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF6366F1), Color(0xFF4F46E5))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Text(
-                        text = message.userName.firstOrNull()?.uppercase() ?: "?",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(senderAccentLight, senderAccentDark)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = message.userName.firstOrNull()?.uppercase() ?: "?",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -790,15 +1026,15 @@ fun MessageBubble(
                     bottomStart = 12.dp,
                     bottomEnd = 12.dp
                 ),
-                color = if (isOwnMessage) Color(0xFF0D9B6B) else Color(0xFF2D1B69),
+                color = if (isOwnMessage) ChatThemeColors.OwnMessageBubble else ChatThemeColors.SurfaceSecondary,
                 modifier = Modifier.widthIn(max = 300.dp),
                 shadowElevation = 4.dp,
                 border = androidx.compose.foundation.BorderStroke(
                     width = 1.dp,
                     color = if (isOwnMessage) 
-                        Color(0xFF10B981).copy(alpha = 0.3f) 
+                        ChatThemeColors.AccentMint.copy(alpha = 0.35f) 
                     else 
-                        Color(0xFF4F46E5).copy(alpha = 0.3f)
+                        senderAccentDark.copy(alpha = 0.35f)
                 )
             ) {
                 Column(
@@ -814,7 +1050,7 @@ fun MessageBubble(
                     } else {
                         Text(
                             text = message.content,
-                            color = if (message.type == MessageType.SYSTEM) Color(0xFFFDE68A)
+                            color = if (message.type == MessageType.SYSTEM) ChatThemeColors.SystemMessage
                             else if (isOwnMessage) Color.White
                             else Color.White.copy(alpha = 0.95f),
                             style = MaterialTheme.typography.bodyMedium,
@@ -829,22 +1065,26 @@ fun MessageBubble(
             if (isOwnMessage) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF5EEAD4), Color(0xFF14B8A6))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Text(
-                        text = "Y",
-                        color = Color(0xFF1A1344),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(ChatThemeColors.AccentMint, ChatThemeColors.AccentMintDark)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Y",
+                            color = ChatThemeColors.SurfacePrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }
@@ -861,7 +1101,7 @@ fun MessageBubble(
                 text = formatMessageTime(message.timestamp),
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 9.sp,
-                color = Color(0xFF9CA3AF)
+                color = ChatThemeColors.TextSecondary
             )
             if (message.edited) {
                 Spacer(modifier = Modifier.width(4.dp))
@@ -869,11 +1109,28 @@ fun MessageBubble(
                     text = "(edited)",
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 9.sp,
-                    color = Color(0xFF9CA3AF)
+                    color = ChatThemeColors.TextSecondary
                 )
             }
         }
     }
+}
+
+private fun buildRoomSenderAccentMap(
+    memberIds: List<String>,
+    currentUserId: String
+): Map<String, Pair<Color, Color>> {
+    val receiverIds = memberIds
+        .filter { it != currentUserId }
+        .distinct()
+
+    if (receiverIds.size <= 2) {
+        return emptyMap()
+    }
+
+    return receiverIds.mapIndexed { index, userId ->
+        userId to ReceiverSenderPalette[index % ReceiverSenderPalette.size]
+    }.toMap()
 }
 
 @Composable
@@ -881,92 +1138,64 @@ fun CodeSnippetCard(
     code: String,
     isOwnMessage: Boolean
 ) {
-    // Auto-detect language from code content
-    val detectedLanguage = detectProgrammingLanguage(code)
-    val lines = code.lines()
-    val codeContent = if (lines.isNotEmpty() && lines.first().length < 20 && !lines.first().contains(" ")) {
-        // First line looks like a language identifier, remove it
-        lines.drop(1).joinToString("\n")
-    } else {
-        code
-    }
-    
+    val codeContent = code.trim()
+    val detectedLanguage = remember(codeContent) { detectProgrammingLanguage(codeContent) }
+
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF1A1A2E),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 400.dp),
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = Color(0xFF5EEAD4).copy(alpha = 0.3f)
-        )
+        shape = RoundedCornerShape(10.dp),
+        color = if (isOwnMessage) Color(0xFF0B3F38) else Color(0xFF1F2937),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
     ) {
         Column {
-            // Language header
-            Surface(
-                color = if (isOwnMessage) Color(0xFF0D9B6B).copy(alpha = 0.3f) 
-                       else Color(0xFF4F46E5).copy(alpha = 0.3f),
-                shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.25f))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Code,
-                        contentDescription = null,
-                        tint = Color(0xFF5EEAD4),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = detectedLanguage.uppercase(),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF5EEAD4),
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+                Icon(
+                    Icons.Default.Code,
+                    contentDescription = null,
+                    tint = ChatThemeColors.AccentMint,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = detectedLanguage.uppercase(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ChatThemeColors.AccentMint,
+                    fontFamily = FontFamily.Monospace
+                )
             }
-            
-            // Code content with horizontal scrolling
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 350.dp)
+                    .heightIn(max = 300.dp)
                     .verticalScroll(rememberScrollState())
-                    .horizontalScroll(rememberScrollState())
-                    .padding(12.dp)
+                    .padding(10.dp)
             ) {
                 codeContent.lines().forEachIndexed { lineIndex, line ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 1.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Line number
                         Text(
                             text = (lineIndex + 1).toString().padStart(3),
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF6B7280),
-                            modifier = Modifier.padding(end = 4.dp),
+                            color = Color(0xFF94A3B8),
                             textAlign = TextAlign.End
                         )
-                        // Code line
                         Text(
                             text = line.ifEmpty { " " },
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = Color(0xFFE5E7EB),
-                            lineHeight = 20.sp,
-                            modifier = Modifier.wrapContentWidth()
+                            color = Color(0xFFE5E7EB)
                         )
                     }
                 }
@@ -1004,7 +1233,7 @@ fun MessageInputBar(
         modifier = modifier
             .fillMaxWidth()
             .shadow(8.dp),
-        color = Color(0xFF1A1344),
+        color = ChatThemeColors.SurfacePrimary,
         tonalElevation = 8.dp
     ) {
         // Main input row with code button integrated
@@ -1022,18 +1251,18 @@ fun MessageInputBar(
                 placeholder = { 
                     Text(
                         "Type a message...",
-                        color = Color(0xFF9CA3AF)
+                        color = ChatThemeColors.TextSecondary
                     ) 
                 },
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.5f),
-                    unfocusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.3f),
-                    focusedBorderColor = Color(0xFF5EEAD4),
+                    focusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.5f),
+                    unfocusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.3f),
+                    focusedBorderColor = ChatThemeColors.AccentMint,
                     unfocusedBorderColor = Color.Transparent,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    cursorColor = Color(0xFF5EEAD4)
+                    cursorColor = ChatThemeColors.AccentMint
                 ),
                 maxLines = 5,
                 minLines = 1
@@ -1047,7 +1276,7 @@ fun MessageInputBar(
                 Icon(
                     Icons.Default.Code,
                     contentDescription = "Code Snippet",
-                    tint = Color(0xFF5EEAD4),
+                    tint = ChatThemeColors.AccentMint,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -1060,18 +1289,18 @@ fun MessageInputBar(
                 },
                 modifier = Modifier.size(48.dp),
                 containerColor = if (value.trim().isNotEmpty()) 
-                    Color(0xFF5EEAD4) 
+                    ChatThemeColors.AccentMint 
                 else 
                     Color(0xFF374151),
                 contentColor = if (value.trim().isNotEmpty()) 
-                    Color(0xFF1A1344) 
+                    ChatThemeColors.SurfacePrimary 
                 else 
                     Color(0xFF6B7280)
             ) {
                 if (isSending) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color(0xFF1A1344),
+                        color = ChatThemeColors.SurfacePrimary,
                         strokeWidth = 2.dp
                     )
                 } else {
@@ -1098,6 +1327,10 @@ private fun formatMessageTime(timestamp: Long): String {
     }
 }
 
+private fun formatDateTime(timestamp: Long): String {
+    return SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(timestamp))
+}
+
 @Composable
 fun FeatureChip(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -1115,7 +1348,7 @@ fun FeatureChip(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = Color(0xFF5EEAD4),
+                tint = ChatThemeColors.AccentMint,
                 modifier = Modifier.size(16.dp)
             )
             Text(
@@ -1132,7 +1365,8 @@ fun FeatureChip(
 fun RoomInfoItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String
+    value: String,
+    detail: String? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1140,7 +1374,7 @@ fun RoomInfoItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = Color(0xFF2D1B69).copy(alpha = 0.3f),
+                color = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(10.dp)
             )
             .padding(12.dp)
@@ -1148,14 +1382,14 @@ fun RoomInfoItem(
         Icon(
             icon,
             contentDescription = label,
-            tint = Color(0xFF5EEAD4),
+            tint = ChatThemeColors.AccentMint,
             modifier = Modifier.size(24.dp)
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color(0xFF9CA3AF),
+                color = ChatThemeColors.TextSecondary,
                 fontWeight = FontWeight.Medium
             )
             Text(
@@ -1164,6 +1398,13 @@ fun RoomInfoItem(
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold
             )
+            detail?.let {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    color = Color.White.copy(alpha = 0.88f)
+                )
+            }
         }
     }
 }

@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.algoviz.plus.domain.model.RoomCategory
+import com.algoviz.plus.ui.notifications.InAppNotification
+import com.algoviz.plus.ui.notifications.InAppNotificationCenter
 import com.algoviz.plus.ui.studyrooms.state.CreateRoomEvent
 import com.algoviz.plus.ui.studyrooms.state.StudyRoomAction
 import com.algoviz.plus.ui.studyrooms.viewmodel.StudyRoomsViewModel
@@ -35,7 +37,6 @@ fun CreateRoomScreen(
     viewModel: StudyRoomsViewModel = hiltViewModel()
 ) {
     val createRoomEvent by viewModel.createRoomEvent.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -52,7 +53,15 @@ fun CreateRoomScreen(
                 onRoomCreated()
             }
             is CreateRoomEvent.Error -> {
-                snackbarHostState.showSnackbar(event.message)
+                InAppNotificationCenter.post(
+                    InAppNotification(
+                        title = "Room creation failed",
+                        message = event.message,
+                        type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                        groupKey = "create_room_errors",
+                        dedupeKey = "create_room_error:${event.message}"
+                    )
+                )
                 viewModel.clearCreateRoomEvent()
             }
             else -> {}
@@ -66,7 +75,6 @@ fun CreateRoomScreen(
     Scaffold(
         modifier = Modifier.background(backgroundBrush),
         containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(color = Color(0xFF1A1344).copy(alpha = 0.95f)) {
                 Row(

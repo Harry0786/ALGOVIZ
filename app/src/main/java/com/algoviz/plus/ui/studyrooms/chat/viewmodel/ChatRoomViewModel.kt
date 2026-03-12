@@ -11,6 +11,7 @@ import com.algoviz.plus.domain.usecase.SendMessageUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.chat.state.ChatRoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -53,6 +55,15 @@ class ChatRoomViewModel @Inject constructor(
 
     private val _roomDeleted = MutableStateFlow(false)
     val roomDeleted: StateFlow<Boolean> = _roomDeleted.asStateFlow()
+
+    private val _otherRoomsUnreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val otherRoomsUnreadCounts: StateFlow<Map<String, Int>> = _otherRoomsUnreadCounts.asStateFlow()
+
+    private var otherRoomsUnreadJob: Job? = null
+    private var typingTimeoutJob: Job? = null
+    private var currentUserId: String? = null
+    private var isTypingActive = false
+    private var lastTypingUpdateAt = 0L
     
     init {
         loadChatRoom()
@@ -65,8 +76,10 @@ class ChatRoomViewModel @Inject constructor(
                 _uiState.value = ChatRoomUiState.Error("User not authenticated")
                 return@launch
             }
+            currentUserId = user.id
 
             getStudyRoomsUseCase.markRoomAsRead(roomId, user.id)
+            observeOtherRoomsUnreadCounts(user.id)
             
             try {
                 combine(
@@ -96,9 +109,63 @@ class ChatRoomViewModel @Inject constructor(
             }
         }
     }
+
+    private fun observeOtherRoomsUnreadCounts(userId: String) {
+        otherRoomsUnreadJob?.cancel()
+        otherRoomsUnreadJob = viewModelScope.launch {
+            combine(
+                getStudyRoomsUseCase.unreadCounts(userId).catch { emit(emptyMap()) },
+                getStudyRoomsUseCase.myRooms(userId).catch { emit(emptyList()) }
+            ) { unreadCounts, myRooms ->
+                val myRoomIds = myRooms.map { it.id }.toSet()
+                unreadCounts
+                    .filterKeys { roomKey -> roomKey in myRoomIds && roomKey != roomId }
+            }
+                .catch {
+                    _otherRoomsUnreadCounts.value = emptyMap()
+                }
+                .collect { filteredUnread ->
+                    _otherRoomsUnreadCounts.value = filteredUnread
+                }
+        }
+    }
     
     fun updateMessageInput(text: String) {
         _messageInput.value = text
+        val userId = currentUserId ?: return
+
+        if (text.isNotBlank()) {
+            val now = System.currentTimeMillis()
+            if (!isTypingActive) {
+                isTypingActive = true
+                lastTypingUpdateAt = now
+                viewModelScope.launch {
+                    getStudyRoomsUseCase.setTypingStatus(roomId, userId, true)
+                }
+            } else if (now - lastTypingUpdateAt >= 900L) {
+                lastTypingUpdateAt = now
+                viewModelScope.launch {
+                    getStudyRoomsUseCase.setTypingStatus(roomId, userId, true)
+                }
+            }
+
+            typingTimeoutJob?.cancel()
+            typingTimeoutJob = viewModelScope.launch {
+                delay(3200)
+                isTypingActive = false
+                lastTypingUpdateAt = 0L
+                getStudyRoomsUseCase.setTypingStatus(roomId, userId, false)
+            }
+        } else {
+            typingTimeoutJob?.cancel()
+            if (isTypingActive) {
+                isTypingActive = false
+                lastTypingUpdateAt = 0L
+                viewModelScope.launch {
+                    getStudyRoomsUseCase.setTypingStatus(roomId, userId, false)
+                }
+            }
+        }
     }
     
     fun sendMessage(type: String = "TEXT", contentOverride: String? = null) {
@@ -144,6 +211,10 @@ class ChatRoomViewModel @Inject constructor(
                 result.onSuccess {
                     _messageInput.value = ""
                     _sendMessageError.value = null
+                    typingTimeoutJob?.cancel()
+                    isTypingActive = false
+                    lastTypingUpdateAt = 0L
+                    getStudyRoomsUseCase.setTypingStatus(roomId, user.id, false)
                 }.onFailure { error ->
                     _sendMessageError.value = error.message ?: "Failed to send message. Check your connection and try again."
                 }
@@ -214,5 +285,14 @@ class ChatRoomViewModel @Inject constructor(
 
     fun clearRoomDeletedEvent() {
         _roomDeleted.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        typingTimeoutJob?.cancel()
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            getStudyRoomsUseCase.setTypingStatus(roomId, userId, false)
+        }
     }
 }
