@@ -147,6 +147,9 @@ jobs:
       - name: Sync dev branches with released master commit
         shell: bash
         run: |
+          # Use the exact released commit from this job, not origin/master (can be stale until refetch).
+          RELEASE_COMMIT="$(git rev-parse HEAD)"
+
           # Always sync jayesh. For Shivansh branch, resolve naming variants safely.
           TARGET_BRANCHES=("jayesh")
 
@@ -168,19 +171,19 @@ jobs:
           fi
 
           for TARGET in "${TARGET_BRANCHES[@]}"; do
-            git fetch origin "$TARGET" || true
+            git fetch origin "$TARGET" >/dev/null 2>&1 || true
 
             if ! git show-ref --verify --quiet "refs/remotes/origin/$TARGET"; then
-              git push origin HEAD:"$TARGET"
-              echo "$TARGET branch created and synced to release commit"
+              git push origin "$RELEASE_COMMIT:refs/heads/$TARGET"
+              echo "$TARGET branch created and synced to release commit $RELEASE_COMMIT"
               continue
             fi
 
-            # Always bring the released master commit back to each dev branch.
+            # Always bring the released commit back to each dev branch.
             git checkout -B "$TARGET-sync" "origin/$TARGET"
-            if git merge --no-edit origin/master; then
+            if git merge --no-edit "$RELEASE_COMMIT"; then
               git push origin HEAD:"$TARGET"
-              echo "$TARGET branch merged with released master commit"
+              echo "$TARGET branch merged with released commit $RELEASE_COMMIT"
             else
               echo "Automatic merge into $TARGET failed due to conflicts"
               echo "Please resolve conflicts manually by merging master into $TARGET"
