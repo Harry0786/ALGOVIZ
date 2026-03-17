@@ -8,6 +8,7 @@ import com.algoviz.plus.domain.usecase.GetRoomMembersUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMessagesUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.SendMessageUseCase
+import com.algoviz.plus.domain.usecase.SyncMemberCountUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.chat.state.ChatRoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,7 @@ class ChatRoomViewModel @Inject constructor(
     private val getRoomMembersUseCase: GetRoomMembersUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val syncMemberCountUseCase: SyncMemberCountUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -88,6 +90,8 @@ class ChatRoomViewModel @Inject constructor(
                     getRoomMembersUseCase(roomId).catch { emit(emptyList()) }
                 ) { room, messages, members ->
                     if (room != null) {
+                        // Sync member count to ensure room.memberCount matches actual members
+                        syncMemberCountUseCase(roomId)
                         ChatRoomUiState.Success(
                             room = room,
                             messages = messages,

@@ -77,6 +77,10 @@ class StudyRoomRepositoryImpl @Inject constructor(
         return dataSource.leaveRoom(roomId, userId)
     }
 
+    override suspend fun syncMemberCount(roomId: String): Result<Unit> {
+        return dataSource.syncMemberCount(roomId)
+    }
+
     override suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> {
         return dataSource.markRoomAsRead(roomId, userId)
     }

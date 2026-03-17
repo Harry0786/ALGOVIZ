@@ -198,7 +198,7 @@ fun ChatRoomScreen(
                                         tint = ChatThemeColors.AccentMint
                                     )
                                     Text(
-                                        text = "${state.room.memberCount} members",
+                                        text = "${state.members.size} members",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 12.sp,
                                         color = ChatThemeColors.TextSecondary

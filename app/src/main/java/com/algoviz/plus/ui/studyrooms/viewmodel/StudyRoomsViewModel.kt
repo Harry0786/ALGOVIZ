@@ -6,6 +6,7 @@ import com.algoviz.plus.domain.usecase.CreateRoomUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.JoinStudyRoomUseCase
 import com.algoviz.plus.domain.usecase.LeaveRoomUseCase
+import com.algoviz.plus.domain.usecase.SyncMemberCountUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import com.algoviz.plus.ui.studyrooms.state.CreateRoomEvent
 import com.algoviz.plus.ui.studyrooms.state.StudyRoomAction
@@ -30,7 +31,8 @@ class StudyRoomsViewModel @Inject constructor(
     private val joinStudyRoomUseCase: JoinStudyRoomUseCase,
     private val leaveRoomUseCase: LeaveRoomUseCase,
     private val createRoomUseCase: CreateRoomUseCase,
-    private val getCurrentUserUseCase: GetCurrentUserUseCase
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val syncMemberCountUseCase: SyncMemberCountUseCase
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow<StudyRoomsUiState>(StudyRoomsUiState.Loading)
@@ -212,6 +214,11 @@ class StudyRoomsViewModel @Inject constructor(
                     _uiState.value = StudyRoomsUiState.Error(
                         error.message ?: "Failed to join room. Please try again."
                     )
+                }
+                
+                // On success, sync member count to ensure consistency
+                result.onSuccess {
+                    syncMemberCountUseCase(roomId)
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 if (currentState is StudyRoomsUiState.Success) {
