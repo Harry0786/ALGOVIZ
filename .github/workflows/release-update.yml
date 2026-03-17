@@ -147,7 +147,25 @@ jobs:
       - name: Sync dev branches with released master commit
         shell: bash
         run: |
-          TARGET_BRANCHES=("jayesh" "shivansh")
+          # Always sync jayesh. For Shivansh branch, resolve naming variants safely.
+          TARGET_BRANCHES=("jayesh")
+
+          SHIVANSH_VARIANTS=("shivansh" "Shivansh" "Shivanshs")
+          RESOLVED_SHIVANSH=""
+          for CANDIDATE in "${SHIVANSH_VARIANTS[@]}"; do
+            git fetch origin "$CANDIDATE" >/dev/null 2>&1 || true
+            if git show-ref --verify --quiet "refs/remotes/origin/$CANDIDATE"; then
+              RESOLVED_SHIVANSH="$CANDIDATE"
+              break
+            fi
+          done
+
+          if [[ -n "$RESOLVED_SHIVANSH" ]]; then
+            TARGET_BRANCHES+=("$RESOLVED_SHIVANSH")
+          else
+            # If no existing Shivansh branch is found, create canonical lowercase branch.
+            TARGET_BRANCHES+=("shivansh")
+          fi
 
           for TARGET in "${TARGET_BRANCHES[@]}"; do
             git fetch origin "$TARGET" || true
