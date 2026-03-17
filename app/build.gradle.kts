@@ -18,8 +18,8 @@ android {
         applicationId = "com.algoviz.plus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.1.20"
+        versionCode = 12
+        versionName = "1.1.21"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
