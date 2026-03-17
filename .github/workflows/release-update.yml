@@ -149,17 +149,22 @@ jobs:
         run: |
           git fetch origin jayesh || true
 
-          if git show-ref --verify --quiet refs/remotes/origin/jayesh; then
-            if git merge-base --is-ancestor origin/jayesh HEAD; then
-              git push origin HEAD:jayesh
-              echo "jayesh branch synced to release commit"
-            else
-              echo "jayesh not synced automatically because it has commits not in master"
-              echo "Please sync manually after reviewing branch divergence"
-            fi
-          else
+          if ! git show-ref --verify --quiet refs/remotes/origin/jayesh; then
             git push origin HEAD:jayesh
             echo "jayesh branch created and synced to release commit"
+            exit 0
+          fi
+
+          # Always bring the release commit back to jayesh.
+          # If jayesh has extra commits, merge master into it and push.
+          git checkout -B jayesh-sync origin/jayesh
+          if git merge --no-edit origin/master; then
+            git push origin HEAD:jayesh
+            echo "jayesh branch merged with released master commit"
+          else
+            echo "Automatic merge into jayesh failed due to conflicts"
+            echo "Please resolve conflicts manually by merging master into jayesh"
+            exit 1
           fi
 
       - name: Install publish dependencies
