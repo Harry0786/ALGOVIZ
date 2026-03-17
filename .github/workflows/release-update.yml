@@ -144,28 +144,34 @@ jobs:
           git tag "${{ steps.meta.outputs.tag_name }}"
           git push origin HEAD:master "${{ steps.meta.outputs.tag_name }}"
 
-      - name: Sync jayesh with released master commit
+      - name: Sync dev branches with released master commit
         shell: bash
         run: |
-          git fetch origin jayesh || true
+          TARGET_BRANCHES=("jayesh" "shivansh")
 
-          if ! git show-ref --verify --quiet refs/remotes/origin/jayesh; then
-            git push origin HEAD:jayesh
-            echo "jayesh branch created and synced to release commit"
-            exit 0
-          fi
+          for TARGET in "${TARGET_BRANCHES[@]}"; do
+            git fetch origin "$TARGET" || true
 
-          # Always bring the release commit back to jayesh.
-          # If jayesh has extra commits, merge master into it and push.
-          git checkout -B jayesh-sync origin/jayesh
-          if git merge --no-edit origin/master; then
-            git push origin HEAD:jayesh
-            echo "jayesh branch merged with released master commit"
-          else
-            echo "Automatic merge into jayesh failed due to conflicts"
-            echo "Please resolve conflicts manually by merging master into jayesh"
-            exit 1
-          fi
+            if ! git show-ref --verify --quiet "refs/remotes/origin/$TARGET"; then
+              git push origin HEAD:"$TARGET"
+              echo "$TARGET branch created and synced to release commit"
+              continue
+            fi
+
+            # Always bring the released master commit back to each dev branch.
+            git checkout -B "$TARGET-sync" "origin/$TARGET"
+            if git merge --no-edit origin/master; then
+              git push origin HEAD:"$TARGET"
+              echo "$TARGET branch merged with released master commit"
+            else
+              echo "Automatic merge into $TARGET failed due to conflicts"
+              echo "Please resolve conflicts manually by merging master into $TARGET"
+              git merge --abort || true
+              exit 1
+            fi
+          done
+
+          git checkout master
 
       - name: Install publish dependencies
         shell: bash
