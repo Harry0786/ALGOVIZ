@@ -431,10 +431,20 @@ fun RoomCard(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
+                        
+                        val isFull = room.memberCount >= room.maxMembers
+                        val isNearFull = room.memberCount >= (room.maxMembers * 0.9).toInt()
+                        val memberCountColor = when {
+                            isFull -> Color(0xFFEF4444) // Red for full
+                            isNearFull -> Color(0xFFFBAA00) // Orange for 90% full
+                            else -> Color.White.copy(alpha = 0.5f)
+                        }
+                        
                         Text(
                             text = "${room.memberCount}/${room.maxMembers}",
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.5f)
+                            color = memberCountColor,
+                            fontWeight = if (isFull || isNearFull) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
                         )
                     }
 

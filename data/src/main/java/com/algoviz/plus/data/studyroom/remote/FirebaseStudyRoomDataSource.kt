@@ -236,6 +236,18 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             return@runCatching // Already a member, no action needed
         }
         
+        // Check room capacity using actual member count from members collection
+        val actualMemberCount = getActualMemberCount(roomId)
+        val roomDoc = firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .get()
+            .await()
+        
+        val maxMembers = roomDoc.getLong("maxMembers")?.toInt() ?: 50
+        if (actualMemberCount >= maxMembers) {
+            throw IllegalStateException("Room is at capacity (${maxMembers} members)")
+        }
+        
         val memberDto = RoomMemberDto(
             userId = userId,
             userName = userName,
@@ -293,6 +305,25 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             // Log error but don't fail the leave operation since member is already removed
             // The count might be slightly off but will be corrected on next operation
         }
+    }
+
+    // Helper: Get actual member count from members collection to verify room capacity
+    private suspend fun getActualMemberCount(roomId: String): Int = runCatching {
+        val querySnapshot = firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .collection(MEMBERS_COLLECTION)
+            .get()
+            .await()
+        querySnapshot.size()
+    }.getOrDefault(0)
+
+    // Public function to sync and fix member count if it's inconsistent with actual members
+    suspend fun syncMemberCount(roomId: String): Result<Unit> = runCatching {
+        val actualCount = getActualMemberCount(roomId)
+        firestore.collection(ROOMS_COLLECTION)
+            .document(roomId)
+            .update("memberCount", actualCount)
+            .await()
     }
 
     suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit> = runCatching {
