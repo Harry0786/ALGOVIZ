@@ -387,6 +387,135 @@ class FirebaseStudyRoomDataSource @Inject constructor(
             )
         ).await()
     }
+
+    suspend fun addMemberByAdmin(
+        roomId: String,
+        adminId: String,
+        targetUserId: String,
+        targetUserName: String
+    ): Result<Unit> = runCatching {
+        require(targetUserId.isNotBlank()) { "Member user id is required" }
+        require(targetUserName.isNotBlank()) { "Member name is required" }
+
+        val roomRef = firestore.collection(ROOMS_COLLECTION).document(roomId)
+        val roomSnapshot = roomRef.get().await()
+        if (!roomSnapshot.exists()) {
+            throw IllegalStateException("Group not found")
+        }
+
+        val createdBy = roomSnapshot.getString("createdBy")
+        if (createdBy != adminId) {
+            throw IllegalStateException("Only group admin can add members")
+        }
+
+        val isActive = roomSnapshot.getBoolean("isActive") ?: true
+        if (!isActive) {
+            throw IllegalStateException("Cannot add members to an inactive group")
+        }
+
+        val memberRef = roomRef.collection(MEMBERS_COLLECTION).document(targetUserId)
+        val existingMember = memberRef.get().await()
+        if (existingMember.exists()) {
+            throw IllegalStateException("Member already exists in this group")
+        }
+
+        val actualMemberCount = getActualMemberCount(roomId)
+        val maxMembers = roomSnapshot.getLong("maxMembers")?.toInt() ?: 50
+        if (actualMemberCount >= maxMembers) {
+            throw IllegalStateException("Room is at capacity (${maxMembers} members)")
+        }
+
+        val now = System.currentTimeMillis()
+        val memberDto = RoomMemberDto(
+            userId = targetUserId,
+            userName = targetUserName,
+            joinedAt = now,
+            isOnline = false,
+            lastSeenAt = now,
+            unreadCount = 0,
+            isTyping = false,
+            typingAt = null
+        )
+        memberRef.set(memberDto).await()
+
+        roomRef.update("memberCount", FieldValue.increment(1)).await()
+
+        val systemMessageRef = roomRef.collection(MESSAGES_COLLECTION).document()
+        val systemContent = "$targetUserName was added to the group"
+        systemMessageRef.set(
+            MessageDto(
+                id = systemMessageRef.id,
+                roomId = roomId,
+                userId = adminId,
+                userName = "System",
+                content = systemContent,
+                type = "SYSTEM",
+                timestamp = now
+            )
+        ).await()
+
+        roomRef.update(
+            mapOf(
+                "lastMessage" to systemContent,
+                "lastMessageAt" to now
+            )
+        ).await()
+    }
+
+    suspend fun removeMemberByAdmin(
+        roomId: String,
+        adminId: String,
+        targetUserId: String
+    ): Result<Unit> = runCatching {
+        require(targetUserId.isNotBlank()) { "Member user id is required" }
+
+        val roomRef = firestore.collection(ROOMS_COLLECTION).document(roomId)
+        val roomSnapshot = roomRef.get().await()
+        if (!roomSnapshot.exists()) {
+            throw IllegalStateException("Group not found")
+        }
+
+        val createdBy = roomSnapshot.getString("createdBy")
+        if (createdBy != adminId) {
+            throw IllegalStateException("Only group admin can remove members")
+        }
+        if (targetUserId == adminId) {
+            throw IllegalStateException("Admin cannot remove themselves")
+        }
+
+        val memberRef = roomRef.collection(MEMBERS_COLLECTION).document(targetUserId)
+        val memberSnapshot = memberRef.get().await()
+        if (!memberSnapshot.exists()) {
+            throw IllegalStateException("Member not found in this group")
+        }
+
+        val removedName = memberSnapshot.getString("userName") ?: "A member"
+        memberRef.delete().await()
+
+        val now = System.currentTimeMillis()
+        roomRef.update("memberCount", FieldValue.increment(-1)).await()
+
+        val systemMessageRef = roomRef.collection(MESSAGES_COLLECTION).document()
+        val systemContent = "$removedName was removed from the group"
+        systemMessageRef.set(
+            MessageDto(
+                id = systemMessageRef.id,
+                roomId = roomId,
+                userId = adminId,
+                userName = "System",
+                content = systemContent,
+                type = "SYSTEM",
+                timestamp = now
+            )
+        ).await()
+
+        roomRef.update(
+            mapOf(
+                "lastMessage" to systemContent,
+                "lastMessageAt" to now
+            )
+        ).await()
+    }
     
     // Message operations
     fun observeRoomMessages(roomId: String, limit: Int): Flow<List<MessageDto>> = callbackFlow {

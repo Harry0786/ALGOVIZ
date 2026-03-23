@@ -122,6 +122,10 @@ class FirebaseAuthDataSource @Inject constructor(
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return try {
             Timber.d("FirebaseAuthDataSource: Sending password reset email to: $email")
+            val methods = firebaseAuth.fetchSignInMethodsForEmail(email).await().signInMethods.orEmpty()
+            if (methods.isEmpty()) {
+                return Result.failure(Exception("No account found for this email address"))
+            }
             firebaseAuth.sendPasswordResetEmail(email).await()
             Timber.d("FirebaseAuthDataSource: Password reset email sent successfully")
             Result.success(Unit)

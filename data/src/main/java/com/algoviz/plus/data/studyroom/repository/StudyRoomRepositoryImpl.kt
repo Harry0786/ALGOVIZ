@@ -77,6 +77,23 @@ class StudyRoomRepositoryImpl @Inject constructor(
         return dataSource.leaveRoom(roomId, userId)
     }
 
+    override suspend fun addMemberByAdmin(
+        roomId: String,
+        adminId: String,
+        targetUserId: String,
+        targetUserName: String
+    ): Result<Unit> {
+        return dataSource.addMemberByAdmin(roomId, adminId, targetUserId, targetUserName)
+    }
+
+    override suspend fun removeMemberByAdmin(
+        roomId: String,
+        adminId: String,
+        targetUserId: String
+    ): Result<Unit> {
+        return dataSource.removeMemberByAdmin(roomId, adminId, targetUserId)
+    }
+
     override suspend fun syncMemberCount(roomId: String): Result<Unit> {
         return dataSource.syncMemberCount(roomId)
     }

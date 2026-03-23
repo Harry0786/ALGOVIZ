@@ -94,10 +94,15 @@ fun ChatRoomScreen(
     val isDeletingRoom by viewModel.isDeletingRoom.collectAsStateWithLifecycle()
     val deleteRoomError by viewModel.deleteRoomError.collectAsStateWithLifecycle()
     val roomDeleted by viewModel.roomDeleted.collectAsStateWithLifecycle()
+    val memberActionError by viewModel.memberActionError.collectAsStateWithLifecycle()
+    val memberActionSuccess by viewModel.memberActionSuccess.collectAsStateWithLifecycle()
+    val isMemberActionInProgress by viewModel.isMemberActionInProgress.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var showMemberList by remember { mutableStateOf(false) }
     var showCodeSnippetDialog by remember { mutableStateOf(false) }
     var showDeleteGroupConfirm by remember { mutableStateOf(false) }
+    var addMemberUserId by remember { mutableStateOf("") }
+    var addMemberName by remember { mutableStateOf("") }
     val currentRoomId = (uiState as? ChatRoomUiState.Success)?.room?.id
 
     DisposableEffect(currentRoomId) {
@@ -156,6 +161,36 @@ fun ChatRoomScreen(
             )
             viewModel.clearRoomDeletedEvent()
             onBackClick()
+        }
+    }
+
+    LaunchedEffect(memberActionError) {
+        memberActionError?.let { error ->
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Member action failed",
+                    message = error,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Error,
+                    groupKey = "chat_member_errors",
+                    dedupeKey = "chat_member_error:$error"
+                )
+            )
+            viewModel.clearMemberActionError()
+        }
+    }
+
+    LaunchedEffect(memberActionSuccess) {
+        memberActionSuccess?.let { message ->
+            InAppNotificationCenter.post(
+                InAppNotification(
+                    title = "Group updated",
+                    message = message,
+                    type = com.algoviz.plus.ui.notifications.InAppNotificationType.Success,
+                    groupKey = "chat_member_success",
+                    dedupeKey = "chat_member_success:$message"
+                )
+            )
+            viewModel.clearMemberActionSuccess()
         }
     }
     
@@ -570,6 +605,75 @@ fun ChatRoomScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
+
+                        OutlinedTextField(
+                            value = addMemberUserId,
+                            onValueChange = { addMemberUserId = it },
+                            singleLine = true,
+                            label = { Text("Member User ID") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.5f),
+                                unfocusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.35f),
+                                focusedBorderColor = ChatThemeColors.AccentMint,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                                focusedLabelColor = ChatThemeColors.AccentMint,
+                                unfocusedLabelColor = ChatThemeColors.TextSecondary,
+                                cursorColor = ChatThemeColors.AccentMint
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = addMemberName,
+                            onValueChange = { addMemberName = it },
+                            singleLine = true,
+                            label = { Text("Member Name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.5f),
+                                unfocusedContainerColor = ChatThemeColors.SurfaceSecondary.copy(alpha = 0.35f),
+                                focusedBorderColor = ChatThemeColors.AccentMint,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                                focusedLabelColor = ChatThemeColors.AccentMint,
+                                unfocusedLabelColor = ChatThemeColors.TextSecondary,
+                                cursorColor = ChatThemeColors.AccentMint
+                            )
+                        )
+
+                        Button(
+                            onClick = {
+                                viewModel.addMemberByAdmin(
+                                    targetUserId = addMemberUserId,
+                                    targetUserName = addMemberName
+                                )
+                                addMemberUserId = ""
+                                addMemberName = ""
+                            },
+                            enabled = !isMemberActionInProgress,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ChatThemeColors.AccentMint,
+                                contentColor = ChatThemeColors.SurfacePrimary,
+                                disabledContainerColor = ChatThemeColors.AccentMint.copy(alpha = 0.35f),
+                                disabledContentColor = ChatThemeColors.SurfacePrimary.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isMemberActionInProgress) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ChatThemeColors.SurfacePrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(if (isMemberActionInProgress) "Updating..." else "Add Member")
+                        }
+
                         Button(
                             onClick = { showDeleteGroupConfirm = true },
                             enabled = !isDeletingRoom,
@@ -646,6 +750,21 @@ fun ChatRoomScreen(
                                         fontSize = 14.sp,
                                         color = Color.White
                                     )
+                                }
+
+                                val canRemove = successState.room.createdBy == successState.currentUserId &&
+                                    member.userId != successState.currentUserId
+                                if (canRemove) {
+                                    IconButton(
+                                        onClick = { viewModel.removeMemberByAdmin(member.userId) },
+                                        enabled = !isMemberActionInProgress
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PersonRemove,
+                                            contentDescription = "Remove member",
+                                            tint = Color(0xFFF87171)
+                                        )
+                                    }
                                 }
                             }
                         }

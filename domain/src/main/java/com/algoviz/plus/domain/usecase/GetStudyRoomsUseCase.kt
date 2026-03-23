@@ -39,6 +39,19 @@ class GetStudyRoomsUseCase @Inject constructor(
     suspend fun setTypingStatus(roomId: String, userId: String, isTyping: Boolean): Result<Unit> {
         return repository.updateTypingStatus(roomId, userId, isTyping)
     }
+
+    suspend fun addMemberByAdmin(
+        roomId: String,
+        adminId: String,
+        targetUserId: String,
+        targetUserName: String
+    ): Result<Unit> {
+        return repository.addMemberByAdmin(roomId, adminId, targetUserId, targetUserName)
+    }
+
+    suspend fun removeMemberByAdmin(roomId: String, adminId: String, targetUserId: String): Result<Unit> {
+        return repository.removeMemberByAdmin(roomId, adminId, targetUserId)
+    }
     
     fun search(query: String): Flow<List<StudyRoom>> {
         return repository.searchRooms(query)

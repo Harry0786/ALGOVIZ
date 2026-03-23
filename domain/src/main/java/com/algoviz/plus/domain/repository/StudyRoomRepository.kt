@@ -24,6 +24,8 @@ interface StudyRoomRepository {
     ): Result<String>
     suspend fun joinRoom(roomId: String, userId: String, userName: String): Result<Unit>
     suspend fun leaveRoom(roomId: String, userId: String): Result<Unit>
+    suspend fun addMemberByAdmin(roomId: String, adminId: String, targetUserId: String, targetUserName: String): Result<Unit>
+    suspend fun removeMemberByAdmin(roomId: String, adminId: String, targetUserId: String): Result<Unit>
     suspend fun syncMemberCount(roomId: String): Result<Unit>
     suspend fun markRoomAsRead(roomId: String, userId: String): Result<Unit>
     suspend fun deleteRoom(roomId: String, requesterId: String, requesterName: String): Result<Unit>

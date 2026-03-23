@@ -58,6 +58,15 @@ class ChatRoomViewModel @Inject constructor(
     private val _roomDeleted = MutableStateFlow(false)
     val roomDeleted: StateFlow<Boolean> = _roomDeleted.asStateFlow()
 
+    private val _memberActionError = MutableStateFlow<String?>(null)
+    val memberActionError: StateFlow<String?> = _memberActionError.asStateFlow()
+
+    private val _memberActionSuccess = MutableStateFlow<String?>(null)
+    val memberActionSuccess: StateFlow<String?> = _memberActionSuccess.asStateFlow()
+
+    private val _isMemberActionInProgress = MutableStateFlow(false)
+    val isMemberActionInProgress: StateFlow<Boolean> = _isMemberActionInProgress.asStateFlow()
+
     private val _otherRoomsUnreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
     val otherRoomsUnreadCounts: StateFlow<Map<String, Int>> = _otherRoomsUnreadCounts.asStateFlow()
 
@@ -289,6 +298,84 @@ class ChatRoomViewModel @Inject constructor(
 
     fun clearRoomDeletedEvent() {
         _roomDeleted.value = false
+    }
+
+    fun addMemberByAdmin(targetUserId: String, targetUserName: String) {
+        if (_isMemberActionInProgress.value) return
+
+        val state = _uiState.value as? ChatRoomUiState.Success
+        if (state == null) {
+            _memberActionError.value = "Room state unavailable"
+            return
+        }
+        if (state.currentUserId != state.room.createdBy) {
+            _memberActionError.value = "Only group admin can add members"
+            return
+        }
+
+        val normalizedUserId = targetUserId.trim()
+        val normalizedUserName = targetUserName.trim()
+        if (normalizedUserId.isBlank() || normalizedUserName.isBlank()) {
+            _memberActionError.value = "Member id and name are required"
+            return
+        }
+
+        viewModelScope.launch {
+            _isMemberActionInProgress.value = true
+            getStudyRoomsUseCase.addMemberByAdmin(
+                roomId = roomId,
+                adminId = state.currentUserId,
+                targetUserId = normalizedUserId,
+                targetUserName = normalizedUserName
+            ).onSuccess {
+                _memberActionSuccess.value = "$normalizedUserName added to group"
+            }.onFailure { error ->
+                _memberActionError.value = error.message ?: "Failed to add member"
+            }
+            _isMemberActionInProgress.value = false
+        }
+    }
+
+    fun removeMemberByAdmin(targetUserId: String) {
+        if (_isMemberActionInProgress.value) return
+
+        val state = _uiState.value as? ChatRoomUiState.Success
+        if (state == null) {
+            _memberActionError.value = "Room state unavailable"
+            return
+        }
+        if (state.currentUserId != state.room.createdBy) {
+            _memberActionError.value = "Only group admin can remove members"
+            return
+        }
+
+        val member = state.members.firstOrNull { it.userId == targetUserId }
+        if (member == null) {
+            _memberActionError.value = "Member not found"
+            return
+        }
+
+        viewModelScope.launch {
+            _isMemberActionInProgress.value = true
+            getStudyRoomsUseCase.removeMemberByAdmin(
+                roomId = roomId,
+                adminId = state.currentUserId,
+                targetUserId = targetUserId
+            ).onSuccess {
+                _memberActionSuccess.value = "${member.userName} removed from group"
+            }.onFailure { error ->
+                _memberActionError.value = error.message ?: "Failed to remove member"
+            }
+            _isMemberActionInProgress.value = false
+        }
+    }
+
+    fun clearMemberActionError() {
+        _memberActionError.value = null
+    }
+
+    fun clearMemberActionSuccess() {
+        _memberActionSuccess.value = null
     }
 
     override fun onCleared() {
