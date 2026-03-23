@@ -25,6 +25,7 @@ class PreferencesManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val dataStore = context.dataStore
+    private val learnItemPrefix = "learn_item_"
 
     // Auth Token
     suspend fun saveAuthToken(token: String) {
@@ -145,6 +146,30 @@ class PreferencesManager @Inject constructor(
 
     val profileAvatarColorIndex: Flow<Int> = dataStore.data.map { preferences ->
         preferences[intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX)] ?: 0
+    }
+
+    // Learn progress
+    suspend fun setLearnItemCompleted(itemId: String, completed: Boolean) {
+        val key = booleanPreferencesKey("$learnItemPrefix$itemId")
+        dataStore.edit { preferences ->
+            if (completed) {
+                preferences[key] = true
+            } else {
+                preferences.remove(key)
+            }
+        }
+    }
+
+    val learnItemCompletion: Flow<Map<String, Boolean>> = dataStore.data.map { preferences ->
+        preferences.asMap()
+            .mapNotNull { (key, value) ->
+                if (key.name.startsWith(learnItemPrefix) && value is Boolean) {
+                    key.name.removePrefix(learnItemPrefix) to value
+                } else {
+                    null
+                }
+            }
+            .toMap()
     }
 
     // Clear all preferences

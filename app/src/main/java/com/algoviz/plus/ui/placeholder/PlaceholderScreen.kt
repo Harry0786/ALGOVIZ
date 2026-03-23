@@ -25,6 +25,7 @@ import com.algoviz.plus.ui.notifications.GlobalStudyRoomNotificationViewModel
 import com.algoviz.plus.ui.notifications.InAppNotification
 import com.algoviz.plus.ui.notifications.InAppNotificationCenter
 import com.algoviz.plus.ui.notifications.TopInAppNotificationBar
+import com.algoviz.plus.ui.learn.LearnScreen
 import com.algoviz.plus.ui.profile.ProfileEditScreen
 import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
 import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
@@ -94,7 +95,17 @@ fun PlaceholderScreen(
                     onLogoutClick = { authViewModel.logout() },
                     onProfileClick = { navController.navigateSafely("profile_edit") },
                     onVisualize = { navController.navigateSafely("algorithms") },
+                    onLearn = { navController.navigateSafely("learn") },
                     onStudyRooms = { navController.navigateSafely("study_rooms") }
+                )
+            }
+
+            composable("learn") {
+                LearnScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onVisualizeAlgorithm = { algorithmId ->
+                        navController.navigate("visualization/$algorithmId")
+                    }
                 )
             }
 
