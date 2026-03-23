@@ -61,6 +61,7 @@ import androidx.core.content.FileProvider
 import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.ui.notifications.InAppNotification
 import com.algoviz.plus.ui.notifications.InAppNotificationCenter
+import com.algoviz.plus.ui.learn.viewmodel.LearnViewModel
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,15 +70,18 @@ fun HomeScreen(
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
     onVisualize: () -> Unit = {},
+    onLearn: () -> Unit = {},
     onStudyRooms: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    learnViewModel: LearnViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val learnProgress by learnViewModel.homeProgress.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -350,7 +354,7 @@ fun HomeScreen(
                         title = "Learn",
                         subtitle = "Concepts",
                         gradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777)),
-                        onClick = { /* Navigate */ }
+                        onClick = onLearn
                     )
                     QuickActionCard(
                         modifier = Modifier.weight(1f),
@@ -383,21 +387,21 @@ fun HomeScreen(
                     icon = Icons.Outlined.SwapVert,
                     title = "Sorting Algorithms",
                     description = "Bubble, Quick, Merge & more",
-                    progress = 0.65f
+                    progress = learnProgress.sorting
                 )
                 
                 TopicCard(
                     icon = Icons.Outlined.AccountTree,
                     title = "Graph Algorithms",
                     description = "BFS, DFS, Dijkstra & more",
-                    progress = 0.40f
+                    progress = learnProgress.graph
                 )
                 
                 TopicCard(
                     icon = Icons.Outlined.DataObject,
                     title = "Data Structures",
                     description = "Arrays, Trees, Heaps & more",
-                    progress = 0.80f
+                    progress = learnProgress.dataStructures
                 )
             }
             
