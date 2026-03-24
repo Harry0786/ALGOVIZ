@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.algoviz.plus.core.common.constants.AppConstants
 import com.algoviz.plus.core.common.constants.PreferenceKeys
@@ -26,6 +27,15 @@ class PreferencesManager @Inject constructor(
 ) {
     private val dataStore = context.dataStore
     private val learnItemPrefix = "learn_item_"
+    private val learnPlaylistNamePrefix = "learn_playlist_name_"
+    private val learnPlaylistItemsPrefix = "learn_playlist_items_"
+    private val learnPlaylistIdsKey = stringSetPreferencesKey("learn_playlist_ids")
+
+    data class StoredLearnPlaylist(
+        val id: String,
+        val name: String,
+        val itemIds: Set<String>
+    )
 
     // Auth Token
     suspend fun saveAuthToken(token: String) {
@@ -170,6 +180,56 @@ class PreferencesManager @Inject constructor(
                 }
             }
             .toMap()
+    }
+
+    suspend fun createLearnPlaylist(name: String): String {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Playlist name cannot be empty" }
+
+        val id = buildString {
+            append(trimmed.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_'))
+            append("_")
+            append(System.currentTimeMillis())
+        }
+
+        dataStore.edit { preferences ->
+            val ids = preferences[learnPlaylistIdsKey].orEmpty().toMutableSet()
+            ids.add(id)
+            preferences[learnPlaylistIdsKey] = ids
+            preferences[stringPreferencesKey("$learnPlaylistNamePrefix$id")] = trimmed
+            preferences[stringSetPreferencesKey("$learnPlaylistItemsPrefix$id")] = emptySet()
+        }
+        return id
+    }
+
+    suspend fun addLearnItemToPlaylist(playlistId: String, itemId: String) {
+        val itemsKey = stringSetPreferencesKey("$learnPlaylistItemsPrefix$playlistId")
+        dataStore.edit { preferences ->
+            val updatedItems = preferences[itemsKey].orEmpty().toMutableSet()
+            updatedItems.add(itemId)
+            preferences[itemsKey] = updatedItems
+        }
+    }
+
+    suspend fun removeLearnItemFromPlaylist(playlistId: String, itemId: String) {
+        val itemsKey = stringSetPreferencesKey("$learnPlaylistItemsPrefix$playlistId")
+        dataStore.edit { preferences ->
+            val updatedItems = preferences[itemsKey].orEmpty().toMutableSet()
+            updatedItems.remove(itemId)
+            preferences[itemsKey] = updatedItems
+        }
+    }
+
+    val learnPlaylists: Flow<List<StoredLearnPlaylist>> = dataStore.data.map { preferences ->
+        preferences[learnPlaylistIdsKey]
+            .orEmpty()
+            .map { id ->
+                val name = preferences[stringPreferencesKey("$learnPlaylistNamePrefix$id")]
+                    ?: "Custom Sheet"
+                val items = preferences[stringSetPreferencesKey("$learnPlaylistItemsPrefix$id")].orEmpty()
+                StoredLearnPlaylist(id = id, name = name, itemIds = items)
+            }
+            .sortedBy { it.name.lowercase() }
     }
 
     // Clear all preferences

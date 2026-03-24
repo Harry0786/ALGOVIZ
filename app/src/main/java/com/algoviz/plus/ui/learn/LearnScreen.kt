@@ -23,12 +23,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -48,6 +51,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.algoviz.plus.ui.learn.model.LearnItem
+import com.algoviz.plus.ui.learn.model.LearnPlaylist
 import com.algoviz.plus.ui.learn.model.LearnSection
 import com.algoviz.plus.ui.learn.model.LearnSheet
 import com.algoviz.plus.ui.learn.viewmodel.LearnViewModel
@@ -93,13 +98,21 @@ fun LearnScreen(
 ) {
     val completionMap by viewModel.completionMap.collectAsStateWithLifecycle()
     val sheetProgress by viewModel.sheetProgress.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var selectedSheetId by rememberSaveable { mutableStateOf(initialSheetId) }
     var selectedSectionId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedTopicId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+    var playlistTargetItemIds by remember { mutableStateOf<List<String>>(emptyList()) }
 
     val selectedSheet = selectedSheetId?.let { viewModel.findSheet(it) }
     val selectedSection = selectedSheet?.sections?.firstOrNull { it.id == selectedSectionId }
     val selectedTopic = selectedSection?.items?.firstOrNull { it.id == selectedTopicId }
+    val selectedPlaylist = playlists.firstOrNull { it.id == selectedPlaylistId }
+    val selectedPlaylistItems = remember(selectedPlaylist, viewModel.sheets) {
+        selectedPlaylist?.itemIds.orEmpty().mapNotNull { viewModel.findItem(it) }
+    }
     val continueTarget = remember(completionMap, viewModel.sheets) {
         findContinueTarget(viewModel.sheets, completionMap)
     }
@@ -127,13 +140,34 @@ fun LearnScreen(
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
         when {
+            selectedPlaylist != null && selectedSheet == null -> {
+                LearnPlaylistTopics(
+                    playlist = selectedPlaylist,
+                    items = selectedPlaylistItems,
+                    completionMap = completionMap,
+                    onBack = { selectedPlaylistId = null },
+                    onOpenTopic = { itemId ->
+                        val location = findTopicLocation(viewModel.sheets, itemId)
+                        if (location != null) {
+                            selectedSheetId = location.sheetId
+                            selectedSectionId = location.sectionId
+                            selectedTopicId = location.topicId
+                            selectedPlaylistId = null
+                        }
+                    }
+                )
+            }
+
             selectedSheet == null -> {
                 LearnSheetList(
                     sheets = viewModel.sheets,
                     sheetProgress = sheetProgress,
+                    playlists = playlists,
                     continueTarget = continueTarget,
                     overallProgress = overallProgress,
                     onBackClick = onBackClick,
+                    onCreatePlaylist = { showCreatePlaylistDialog = true },
+                    onOpenPlaylist = { selectedPlaylistId = it },
                     onOpenSheet = {
                         selectedSheetId = it
                         selectedSectionId = null
@@ -174,7 +208,13 @@ fun LearnScreen(
                         selectedTopicId = null
                     },
                     onOpenTopic = { selectedTopicId = it },
-                    onToggleComplete = viewModel::setItemCompleted
+                    onToggleComplete = viewModel::setItemCompleted,
+                    onAddTopicToPlaylist = { itemId ->
+                        playlistTargetItemIds = listOf(itemId)
+                    },
+                    onAddSectionToPlaylist = { itemIds ->
+                        playlistTargetItemIds = itemIds
+                    }
                 )
             }
 
@@ -186,6 +226,9 @@ fun LearnScreen(
                     isCompleted = completionMap[selectedTopic.id] == true,
                     onBack = { selectedTopicId = null },
                     onToggleComplete = viewModel::setItemCompleted,
+                    onAddToPlaylist = { itemId ->
+                        playlistTargetItemIds = listOf(itemId)
+                    },
                     onVisualizeAlgorithm = onVisualizeAlgorithm,
                     hasPrevious = currentTopicIndex > 0,
                     hasNext = currentTopicIndex in 0 until currentSectionItems.lastIndex,
@@ -202,6 +245,34 @@ fun LearnScreen(
                 )
             }
         }
+
+        if (showCreatePlaylistDialog) {
+            CreatePlaylistDialog(
+                onDismiss = { showCreatePlaylistDialog = false },
+                onCreate = { name ->
+                    viewModel.createPlaylist(name)
+                    showCreatePlaylistDialog = false
+                }
+            )
+        }
+
+        if (playlistTargetItemIds.isNotEmpty()) {
+            AddToPlaylistDialog(
+                playlists = playlists,
+                topicCount = playlistTargetItemIds.size,
+                onDismiss = { playlistTargetItemIds = emptyList() },
+                onCreateNew = {
+                    playlistTargetItemIds = emptyList()
+                    showCreatePlaylistDialog = true
+                },
+                onAddToPlaylist = { playlistId ->
+                    playlistTargetItemIds.forEach { itemId ->
+                        viewModel.addItemToPlaylist(playlistId, itemId)
+                    }
+                    playlistTargetItemIds = emptyList()
+                }
+            )
+        }
     }
 }
 
@@ -209,9 +280,12 @@ fun LearnScreen(
 private fun LearnSheetList(
     sheets: List<LearnSheet>,
     sheetProgress: Map<String, Float>,
+    playlists: List<LearnPlaylist>,
     continueTarget: ContinueTarget?,
     overallProgress: Float,
     onBackClick: () -> Unit,
+    onCreatePlaylist: () -> Unit,
+    onOpenPlaylist: (String) -> Unit,
     onOpenSheet: (String) -> Unit,
     onContinueLearning: (ContinueTarget) -> Unit
 ) {
@@ -247,6 +321,61 @@ private fun LearnSheetList(
                     fontSize = 13.sp
                 )
             }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onCreatePlaylist) {
+                Icon(
+                    imageVector = Icons.Outlined.AddCircle,
+                    contentDescription = "Create Own Sheet",
+                    tint = Color(0xFF5EEAD4)
+                )
+            }
+        }
+
+        if (playlists.isNotEmpty()) {
+            Text(
+                text = "Create Own Sheet",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                playlists.forEach { playlist ->
+                    Surface(
+                        onClick = { onOpenPlaylist(playlist.id) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = playlist.name,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "${playlist.itemIds.size} topics",
+                                color = Color(0xFF5EEAD4),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
         Surface(
@@ -557,7 +686,9 @@ private fun LearnTopicList(
     completionMap: Map<String, Boolean>,
     onBack: () -> Unit,
     onOpenTopic: (String) -> Unit,
-    onToggleComplete: (String, Boolean) -> Unit
+    onToggleComplete: (String, Boolean) -> Unit,
+    onAddTopicToPlaylist: (String) -> Unit,
+    onAddSectionToPlaylist: (List<String>) -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(TopicFilter.ALL) }
@@ -618,6 +749,16 @@ private fun LearnTopicList(
                         text = "Tap any topic to open full-screen details",
                         color = Color.White.copy(alpha = 0.66f),
                         fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = { onAddSectionToPlaylist(section.items.map { it.id }) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PlaylistPlay,
+                        contentDescription = "Add Section To Playlist",
+                        tint = Color(0xFF5EEAD4)
                     )
                 }
             }
@@ -703,7 +844,8 @@ private fun LearnTopicList(
                 item = item,
                 isCompleted = completionMap[item.id] == true,
                 onOpenTopic = { onOpenTopic(item.id) },
-                onToggleComplete = { checked -> onToggleComplete(item.id, checked) }
+                onToggleComplete = { checked -> onToggleComplete(item.id, checked) },
+                onAddToPlaylist = { onAddTopicToPlaylist(item.id) }
             )
         }
 
@@ -718,7 +860,8 @@ private fun LearnTopicCard(
     item: LearnItem,
     isCompleted: Boolean,
     onOpenTopic: () -> Unit,
-    onToggleComplete: (Boolean) -> Unit
+    onToggleComplete: (Boolean) -> Unit,
+    onAddToPlaylist: () -> Unit
 ) {
     Card(
         onClick = onOpenTopic,
@@ -796,6 +939,20 @@ private fun LearnTopicCard(
                     disabledLeadingIconContentColor = Color.White.copy(alpha = 0.76f)
                 )
             )
+
+            OutlinedButton(
+                onClick = onAddToPlaylist,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PlaylistPlay,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+                Text("Add To Create Own Sheet", color = Color.White, fontSize = 12.sp)
+            }
         }
     }
 }
@@ -808,6 +965,7 @@ private fun LearnTopicDetail(
     isCompleted: Boolean,
     onBack: () -> Unit,
     onToggleComplete: (String, Boolean) -> Unit,
+    onAddToPlaylist: (String) -> Unit,
     onVisualizeAlgorithm: (String) -> Unit,
     hasPrevious: Boolean,
     hasNext: Boolean,
@@ -899,6 +1057,20 @@ private fun LearnTopicDetail(
                         lineHeight = 22.sp
                     )
 
+                    TheoryApproachCard(
+                        title = "Brute Force Approach",
+                        content = item.bruteForceApproach.ifBlank {
+                            defaultBruteForceExplanation(item)
+                        }
+                    )
+
+                    TheoryApproachCard(
+                        title = "Optimal Approach",
+                        content = item.optimalApproach.ifBlank {
+                            defaultOptimalExplanation(item)
+                        }
+                    )
+
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "Key Takeaways",
@@ -956,6 +1128,20 @@ private fun LearnTopicDetail(
                         )
                     }
 
+                    OutlinedButton(
+                        onClick = { onAddToPlaylist(item.id) },
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.30f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PlaylistPlay,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Add To Create Own Sheet", color = Color.White)
+                    }
+
                     if (item.algorithmId != null) {
                         Button(
                             onClick = { onVisualizeAlgorithm(item.algorithmId) },
@@ -1006,6 +1192,233 @@ private fun LearnTopicDetail(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
+}
+
+@Composable
+private fun TheoryApproachCard(
+    title: String,
+    content: String
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.06f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = title,
+                color = Color(0xFF5EEAD4),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            )
+            Text(
+                text = content,
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun LearnPlaylistTopics(
+    playlist: LearnPlaylist,
+    items: List<LearnItem>,
+    completionMap: Map<String, Boolean>,
+    onBack: () -> Unit,
+    onOpenTopic: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Create Own Sheet",
+                        color = Color(0xFF5EEAD4),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = playlist.name,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${items.size} topics",
+                        color = Color.White.copy(alpha = 0.66f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+
+        if (items.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.07f)
+                ) {
+                    Text(
+                        text = "No topics in this custom sheet yet.",
+                        modifier = Modifier.padding(14.dp),
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                }
+            }
+        }
+
+        items(items) { item ->
+            LearnTopicCard(
+                item = item,
+                isCompleted = completionMap[item.id] == true,
+                onOpenTopic = { onOpenTopic(item.id) },
+                onToggleComplete = {},
+                onAddToPlaylist = {}
+            )
+        }
+    }
+}
+
+@Composable
+private fun CreatePlaylistDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create Own Sheet") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Sheet Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onCreate(name) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    playlists: List<LearnPlaylist>,
+    topicCount: Int,
+    onDismiss: () -> Unit,
+    onCreateNew: () -> Unit,
+    onAddToPlaylist: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add To Create Own Sheet") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select a custom sheet for ${topicCount} topic(s).")
+                if (playlists.isEmpty()) {
+                    Text(
+                        text = "No custom sheet found. Create one first.",
+                        color = Color.Gray
+                    )
+                } else {
+                    playlists.forEach { playlist ->
+                        OutlinedButton(
+                            onClick = { onAddToPlaylist(playlist.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("${playlist.name} (${playlist.itemIds.size})")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onCreateNew) {
+                Text("Create New")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+private data class TopicLocation(
+    val sheetId: String,
+    val sectionId: String,
+    val topicId: String
+)
+
+private fun findTopicLocation(
+    sheets: List<LearnSheet>,
+    itemId: String
+): TopicLocation? {
+    sheets.forEach { sheet ->
+        sheet.sections.forEach { section ->
+            if (section.items.any { it.id == itemId }) {
+                return TopicLocation(sheet.id, section.id, itemId)
+            }
+        }
+    }
+    return null
+}
+
+private fun defaultBruteForceExplanation(item: LearnItem): String {
+    return "Start by checking all straightforward possibilities for ${item.title}. " +
+        "This usually means trying each candidate state, validating the condition, and keeping track of the best valid result. " +
+        "The brute force route is easier to reason about and helps you verify correctness before optimization."
+}
+
+private fun defaultOptimalExplanation(item: LearnItem): String {
+    val hint = when {
+        item.tags.contains(com.algoviz.plus.ui.learn.model.LearnTopicTag.GRAPH) ->
+            "Use graph traversal or shortest-path strategy with visited/state pruning."
+        item.tags.contains(com.algoviz.plus.ui.learn.model.LearnTopicTag.DYNAMIC_PROGRAMMING) ->
+            "Define a compact state transition and reuse overlapping subproblems."
+        item.tags.contains(com.algoviz.plus.ui.learn.model.LearnTopicTag.SEARCHING) ->
+            "Exploit monotonicity or ordering to cut the search space quickly."
+        item.tags.contains(com.algoviz.plus.ui.learn.model.LearnTopicTag.SORTING) ->
+            "Use ordering to avoid repeated comparisons and derive answer in fewer passes."
+        else -> "Use the right data structure to reduce repeated work and improve lookups/updates."
+    }
+    return "$hint Focus on minimizing repeated computation while preserving correctness for edge cases."
 }
 
 private fun sectionProgress(section: LearnSection, completionMap: Map<String, Boolean>): Float {

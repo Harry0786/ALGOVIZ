@@ -14,8 +14,16 @@ data class LearnItem(
     val title: String,
     val explanation: String,
     val keyPoints: List<String>,
+    val bruteForceApproach: String = "",
+    val optimalApproach: String = "",
     val algorithmId: String? = null,
     val tags: Set<LearnTopicTag> = emptySet()
+)
+
+data class LearnPlaylist(
+    val id: String,
+    val name: String,
+    val itemIds: Set<String>
 )
 
 data class LearnSection(

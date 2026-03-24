@@ -81,7 +81,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
-    val learnProgress by learnViewModel.homeProgress.collectAsStateWithLifecycle()
+    val sheetProgressList by learnViewModel.homeSheetProgress.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -369,7 +369,7 @@ fun HomeScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
             
-            // Popular Topics
+            // Sheet Progress
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -377,32 +377,25 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Popular Topics",
+                    text = "Sheet Progress",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
-                
-                TopicCard(
-                    icon = Icons.Outlined.SwapVert,
-                    title = "Sorting Algorithms",
-                    description = "Bubble, Quick, Merge & more",
-                    progress = learnProgress.sorting
-                )
-                
-                TopicCard(
-                    icon = Icons.Outlined.AccountTree,
-                    title = "Graph Algorithms",
-                    description = "BFS, DFS, Dijkstra & more",
-                    progress = learnProgress.graph
-                )
-                
-                TopicCard(
-                    icon = Icons.Outlined.DataObject,
-                    title = "Data Structures",
-                    description = "Arrays, Trees, Heaps & more",
-                    progress = learnProgress.dataStructures
-                )
+
+                sheetProgressList.forEachIndexed { index, item ->
+                    val icon = when (index % 3) {
+                        0 -> Icons.Outlined.MenuBook
+                        1 -> Icons.Outlined.AccountTree
+                        else -> Icons.Outlined.School
+                    }
+                    TopicCard(
+                        icon = icon,
+                        title = item.title,
+                        description = item.subtitle,
+                        progress = item.progress
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(32.dp))

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.algoviz.plus.core.datastore.PreferencesManager
 import com.algoviz.plus.ui.learn.data.CheatSheetCatalog
+import com.algoviz.plus.ui.learn.model.LearnPlaylist
 import com.algoviz.plus.ui.learn.model.LearnSheet
 import com.algoviz.plus.ui.learn.model.LearnTopicTag
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,13 @@ data class HomeLearnProgress(
     val sorting: Float,
     val graph: Float,
     val dataStructures: Float
+)
+
+data class HomeSheetProgress(
+    val sheetId: String,
+    val title: String,
+    val subtitle: String,
+    val progress: Float
 )
 
 @HiltViewModel
@@ -80,6 +88,37 @@ class LearnViewModel @Inject constructor(
                 initialValue = HomeLearnProgress(0f, 0f, 0f)
             )
 
+    val homeSheetProgress: StateFlow<List<HomeSheetProgress>> =
+        sheetProgress
+            .combine(kotlinx.coroutines.flow.flowOf(sheets)) { progressMap, allSheets ->
+                allSheets.map { sheet ->
+                    HomeSheetProgress(
+                        sheetId = sheet.id,
+                        title = sheet.title,
+                        subtitle = sheet.influencer,
+                        progress = progressMap[sheet.id] ?: 0f
+                    )
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
+
+    val playlists: StateFlow<List<LearnPlaylist>> =
+        preferencesManager.learnPlaylists
+            .combine(kotlinx.coroutines.flow.flowOf(sheets)) { stored, _ ->
+                stored.map {
+                    LearnPlaylist(id = it.id, name = it.name, itemIds = it.itemIds)
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
+
     fun findSheet(sheetId: String): LearnSheet? = CheatSheetCatalog.findSheet(sheetId)
 
     fun isCompleted(itemId: String): Boolean = completionMap.value[itemId] == true
@@ -89,4 +128,28 @@ class LearnViewModel @Inject constructor(
             preferencesManager.setLearnItemCompleted(itemId, completed)
         }
     }
+
+    fun createPlaylist(name: String) {
+        viewModelScope.launch {
+            runCatching { preferencesManager.createLearnPlaylist(name) }
+        }
+    }
+
+    fun addItemToPlaylist(playlistId: String, itemId: String) {
+        viewModelScope.launch {
+            preferencesManager.addLearnItemToPlaylist(playlistId, itemId)
+        }
+    }
+
+    fun removeItemFromPlaylist(playlistId: String, itemId: String) {
+        viewModelScope.launch {
+            preferencesManager.removeLearnItemFromPlaylist(playlistId, itemId)
+        }
+    }
+
+    fun findItem(itemId: String) =
+        sheets.asSequence()
+            .flatMap { it.sections.asSequence() }
+            .flatMap { it.items.asSequence() }
+            .firstOrNull { it.id == itemId }
 }
