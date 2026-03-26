@@ -54,5 +54,10 @@ service cloud.firestore {
       // Writes are restricted to trusted server/Admin SDK paths only.
       allow write: if false;
     }
+
+    // User profile data
+    match /user_profiles/{userId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+    }
   }
 }

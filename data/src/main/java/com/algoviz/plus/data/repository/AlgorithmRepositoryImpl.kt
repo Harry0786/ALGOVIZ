@@ -18,7 +18,9 @@ class AlgorithmRepositoryImpl @Inject constructor(
     private val dpAlgorithms: DPAlgorithms,
     private val greedyAlgorithms: GreedyAlgorithms,
     private val backtrackingAlgorithms: BacktrackingAlgorithms,
-    private val stringAlgorithms: StringAlgorithms
+    private val stringAlgorithms: StringAlgorithms,
+    private val divideAndConquerAlgorithms: DivideAndConquerAlgorithms,
+    private val trieAlgorithms: TrieAlgorithms
 ) : AlgorithmRepository {
     
     override fun getAllAlgorithms(): Flow<List<Algorithm>> {
@@ -33,7 +35,15 @@ class AlgorithmRepositoryImpl @Inject constructor(
         return algorithmProvider.getAlgorithmById(id)
     }
     
-    override suspend fun generateSteps(algorithmId: String, initialArray: List<Int>): List<AlgorithmStep> {
+    override suspend fun generateSteps(
+        algorithmId: String,
+        initialArray: List<Int>,
+        extraInput: Map<String, String>
+    ): List<AlgorithmStep> {
+        val targetInput = extraInput["target"]?.toIntOrNull()
+        val kIndexInput = extraInput["kIndex"]?.toIntOrNull()
+        val wordsInput = extraInput["words"]
+
         return when (algorithmId) {
             // Sorting algorithms
             "bubble_sort" -> sortingAlgorithms.bubbleSort(initialArray)
@@ -46,8 +56,11 @@ class AlgorithmRepositoryImpl @Inject constructor(
             "counting_sort" -> sortingAlgorithms.countingSort(initialArray)
             "radix_sort" -> sortingAlgorithms.radixSort(initialArray)
             // Searching algorithms
-            "linear_search" -> searchingAlgorithms.linearSearch(initialArray)
-            "binary_search" -> searchingAlgorithms.binarySearch(initialArray)
+            "linear_search" -> searchingAlgorithms.linearSearch(initialArray, targetInput)
+            "binary_search" -> searchingAlgorithms.binarySearch(initialArray, targetInput)
+            "jump_search" -> searchingAlgorithms.jumpSearch(initialArray, targetInput)
+            "interpolation_search" -> searchingAlgorithms.interpolationSearch(initialArray, targetInput)
+            "exponential_search" -> searchingAlgorithms.exponentialSearch(initialArray, targetInput)
             // Graph algorithms
             "bfs" -> graphAlgorithms.bfs()
             "dfs" -> graphAlgorithms.dfs()
@@ -57,9 +70,10 @@ class AlgorithmRepositoryImpl @Inject constructor(
             "prim" -> graphAlgorithms.primMST()
             // Tree algorithms
             "bst_insertion" -> treeAlgorithms.bstInsertion()
-            "bst_search" -> treeAlgorithms.bstSearch()
+            "bst_search" -> treeAlgorithms.bstSearch(searchValue = targetInput ?: 40)
             "inorder_traversal" -> treeAlgorithms.inorderTraversal()
             "preorder_traversal" -> treeAlgorithms.preorderTraversal()
+            "trie_operations" -> trieAlgorithms.trieOperations(wordsInput)
             // Dynamic Programming algorithms
             "lcs" -> dpAlgorithms.longestCommonSubsequence()
             "knapsack" -> dpAlgorithms.knapsack01()
@@ -73,6 +87,10 @@ class AlgorithmRepositoryImpl @Inject constructor(
             "sudoku_solver" -> backtrackingAlgorithms.sudokuSolver()
             // String matching algorithms
             "kmp" -> stringAlgorithms.kmpPatternMatching()
+            // Divide and Conquer algorithms
+            "ternary_search" -> divideAndConquerAlgorithms.ternarySearch(initialArray, targetInput)
+            "quick_select" -> divideAndConquerAlgorithms.quickSelect(initialArray, kIndexInput)
+            "maximum_subarray_dc" -> divideAndConquerAlgorithms.maximumSubarray(initialArray)
             else -> emptyList()
         }
     }

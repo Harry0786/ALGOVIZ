@@ -9,5 +9,9 @@ interface AlgorithmRepository {
     fun getAllAlgorithms(): Flow<List<Algorithm>>
     fun getAlgorithmsByCategory(category: AlgorithmCategory): Flow<List<Algorithm>>
     fun getAlgorithmById(id: String): Algorithm?
-    suspend fun generateSteps(algorithmId: String, initialArray: List<Int>): List<AlgorithmStep>
+    suspend fun generateSteps(
+        algorithmId: String,
+        initialArray: List<Int>,
+        extraInput: Map<String, String> = emptyMap()
+    ): List<AlgorithmStep>
 }

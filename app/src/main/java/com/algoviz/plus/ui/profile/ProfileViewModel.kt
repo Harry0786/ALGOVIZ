@@ -1,5 +1,6 @@
 package com.algoviz.plus.ui.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.algoviz.plus.core.datastore.PreferencesManager
@@ -13,11 +14,18 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val profileRemoteDataSource: ProfileRemoteDataSource
 ) : ViewModel() {
     
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
+
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
     init {
         // Load profile data from DataStore
@@ -44,6 +52,13 @@ class ProfileViewModel @Inject constructor(
                 )
             }.collect { profile ->
                 _userProfile.value = profile
+            }
+        }
+
+        viewModelScope.launch {
+            val remoteProfile = profileRemoteDataSource.getUserProfile().getOrNull()
+            if (remoteProfile != null) {
+                persistLocalProfile(remoteProfile)
             }
         }
     }
@@ -79,6 +94,72 @@ class ProfileViewModel @Inject constructor(
             preferencesManager.saveProfileAvatarColorIndex(colorIndex)
         }
     }
+
+    fun uploadAvatarFromGallery(imageUri: Uri) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+
+            val uploadResult = profileRemoteDataSource.uploadProfileImage(imageUri)
+            val uploadedUrl = uploadResult.getOrElse {
+                _isSaving.value = false
+                _errorMessage.value = it.message ?: "Unable to upload profile image"
+                return@launch
+            }
+
+            preferencesManager.saveProfileAvatarUrl(uploadedUrl)
+            val updatedProfile = _userProfile.value.copy(avatarUrl = uploadedUrl)
+
+            profileRemoteDataSource.saveUserProfile(updatedProfile)
+                .onFailure { error ->
+                    _errorMessage.value = error.message ?: "Unable to sync profile"
+                }
+
+            _isSaving.value = false
+        }
+    }
+
+    fun saveProfileChanges(
+        name: String,
+        email: String,
+        bio: String,
+        studyGoal: String,
+        skillLevel: String,
+        avatarColorIndex: Int,
+        onSaved: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+
+            val trimmedName = name.trim().ifEmpty { "AlgoViz User" }
+            val trimmedEmail = email.trim().ifEmpty { "user@algoviz.com" }
+            val trimmedBio = bio.trim().ifEmpty { "Learning algorithms and data structures" }
+
+            val updatedProfile = _userProfile.value.copy(
+                name = trimmedName,
+                email = trimmedEmail,
+                bio = trimmedBio,
+                studyGoal = studyGoal,
+                skillLevel = skillLevel,
+                avatarColorIndex = avatarColorIndex
+            )
+
+            persistLocalProfile(updatedProfile)
+
+            profileRemoteDataSource.saveUserProfile(updatedProfile)
+                .onSuccess { onSaved() }
+                .onFailure { error ->
+                    _errorMessage.value = error.message ?: "Unable to sync profile"
+                }
+
+            _isSaving.value = false
+        }
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
     
     fun resetProfile() {
         viewModelScope.launch {
@@ -89,5 +170,15 @@ class ProfileViewModel @Inject constructor(
             preferencesManager.saveProfileStudyGoal("Master algorithms")
             preferencesManager.saveProfileSkillLevel("Beginner")
         }
+    }
+
+    private suspend fun persistLocalProfile(profile: UserProfile) {
+        preferencesManager.saveProfileName(profile.name)
+        preferencesManager.saveProfileEmail(profile.email)
+        preferencesManager.saveProfileBio(profile.bio)
+        preferencesManager.saveProfileAvatarUrl(profile.avatarUrl ?: "")
+        preferencesManager.saveProfileStudyGoal(profile.studyGoal)
+        preferencesManager.saveProfileSkillLevel(profile.skillLevel)
+        preferencesManager.saveProfileAvatarColorIndex(profile.avatarColorIndex)
     }
 }

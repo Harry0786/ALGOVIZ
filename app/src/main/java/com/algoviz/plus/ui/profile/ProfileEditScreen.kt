@@ -1,7 +1,9 @@
 package com.algoviz.plus.ui.profile
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -36,15 +39,19 @@ fun ProfileEditScreen(
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userProfile by profileViewModel.userProfile.collectAsState()
+    val isSaving by profileViewModel.isSaving.collectAsState()
+    val errorMessage by profileViewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     
     var name by remember { mutableStateOf(userProfile.name) }
     var email by remember { mutableStateOf(userProfile.email) }
+    var bio by remember { mutableStateOf(userProfile.bio) }
     var studyGoal by remember { mutableStateOf(userProfile.studyGoal) }
     var skillLevel by remember { mutableStateOf(userProfile.skillLevel) }
     var showSkillMenu by remember { mutableStateOf(false) }
     var showStudyGoalMenu by remember { mutableStateOf(false) }
     var showAvatarDialog by remember { mutableStateOf(false) }
+    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
     var avatarUri by remember { mutableStateOf<Uri?>(userProfile.avatarUrl?.let { Uri.parse(it) }) }
     var avatarColor by remember { mutableStateOf(userProfile.avatarColorIndex) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -69,9 +76,27 @@ fun ProfileEditScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { 
+        uri?.let {
             avatarUri = it
-            profileViewModel.updateAvatarUrl(it.toString())
+            profileViewModel.uploadAvatarFromGallery(it)
+        }
+    }
+
+    val galleryPermission = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    }
+
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            galleryLauncher.launch("image/*")
+        } else {
+            showPermissionDeniedDialog = true
         }
     }
     
@@ -113,6 +138,7 @@ fun ProfileEditScreen(
     LaunchedEffect(userProfile) {
         name = userProfile.name
         email = userProfile.email
+        bio = userProfile.bio
         studyGoal = userProfile.studyGoal
         skillLevel = userProfile.skillLevel
         avatarColor = userProfile.avatarColorIndex
@@ -176,29 +202,30 @@ fun ProfileEditScreen(
                 
                 Button(
                     onClick = {
-                        profileViewModel.updateProfile(
+                        profileViewModel.saveProfileChanges(
                             name = name,
-                            bio = "",
+                            email = email,
+                            bio = bio,
                             studyGoal = studyGoal,
-                            skillLevel = skillLevel
+                            skillLevel = skillLevel,
+                            avatarColorIndex = avatarColor,
+                            onSaved = onBackClick
                         )
-                        profileViewModel.updateEmail(email)
-                        profileViewModel.updateAvatarColorIndex(avatarColor)
-                        onBackClick()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF5EEAD4),
                         contentColor = Color(0xFF1A1344)
                     ),
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.height(44.dp)
+                    modifier = Modifier.height(44.dp),
+                    enabled = !isSaving
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Save",
+                            text = if (isSaving) "Saving..." else "Save",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -309,6 +336,37 @@ fun ProfileEditScreen(
                             Text("Enter your email", color = Color.White.copy(alpha = 0.4f)) 
                         },
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF5EEAD4),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            cursorColor = Color(0xFF5EEAD4),
+                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Bio Field
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Bio",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+
+                    OutlinedTextField(
+                        value = bio,
+                        onValueChange = { bio = it },
+                        placeholder = {
+                            Text("Tell us about your learning focus", color = Color.White.copy(alpha = 0.4f))
+                        },
+                        minLines = 2,
+                        maxLines = 4,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -511,8 +569,18 @@ fun ProfileEditScreen(
                         // Gallery Option
                         Surface(
                             onClick = {
-                                galleryLauncher.launch("image/*")
                                 showAvatarDialog = false
+
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    galleryPermission
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (hasPermission || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                                    galleryLauncher.launch("image/*")
+                                } else {
+                                    galleryPermissionLauncher.launch(galleryPermission)
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.05f),
@@ -613,6 +681,64 @@ fun ProfileEditScreen(
                         )
                     ) {
                         Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showPermissionDeniedDialog) {
+            AlertDialog(
+                onDismissRequest = { showPermissionDeniedDialog = false },
+                containerColor = Color(0xFF1A1344),
+                title = {
+                    Text(
+                        text = "Photo Permission Needed",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Allow photo access to select a profile image from gallery.",
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showPermissionDeniedDialog = false
+                        galleryPermissionLauncher.launch(galleryPermission)
+                    }) {
+                        Text("Allow")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPermissionDeniedDialog = false }) {
+                        Text("Not now")
+                    }
+                }
+            )
+        }
+
+        if (errorMessage != null) {
+            AlertDialog(
+                onDismissRequest = { profileViewModel.clearError() },
+                containerColor = Color(0xFF1A1344),
+                title = {
+                    Text(
+                        text = "Profile Update Failed",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = errorMessage.orEmpty(),
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { profileViewModel.clearError() }) {
+                        Text("OK")
                     }
                 }
             )

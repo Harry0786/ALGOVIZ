@@ -198,6 +198,57 @@ class AlgorithmProvider @Inject constructor() {
             ),
             difficultyLevel = DifficultyLevel.BEGINNER
         ),
+        Algorithm(
+            id = "jump_search",
+            name = "Jump Search",
+            category = AlgorithmCategory.SEARCHING,
+            description = "Search in a sorted array by jumping fixed-size blocks and then scanning linearly.",
+            timeComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(√n)",
+                worst = "O(√n)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(1)",
+                worst = "O(1)"
+            ),
+            difficultyLevel = DifficultyLevel.INTERMEDIATE
+        ),
+        Algorithm(
+            id = "exponential_search",
+            name = "Exponential Search",
+            category = AlgorithmCategory.SEARCHING,
+            description = "Find range by doubling bounds, then run binary search in that reduced window.",
+            timeComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(log n)",
+                worst = "O(log n)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(1)",
+                worst = "O(1)"
+            ),
+            difficultyLevel = DifficultyLevel.INTERMEDIATE
+        ),
+        Algorithm(
+            id = "interpolation_search",
+            name = "Interpolation Search",
+            category = AlgorithmCategory.SEARCHING,
+            description = "Estimate likely position of target in uniformly distributed sorted arrays.",
+            timeComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(log log n)",
+                worst = "O(n)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(1)",
+                worst = "O(1)"
+            ),
+            difficultyLevel = DifficultyLevel.ADVANCED
+        ),
         // Graph Algorithms
         Algorithm(
             id = "bfs",
@@ -325,6 +376,24 @@ class AlgorithmProvider @Inject constructor() {
             ),
             difficultyLevel = DifficultyLevel.BEGINNER,
             defaultArraySize = 7
+        ),
+        Algorithm(
+            id = "trie_operations",
+            name = "Trie Operations",
+            category = AlgorithmCategory.TREE,
+            description = "Insert and search words using Trie (prefix tree) where common prefixes are shared.",
+            timeComplexity = ComplexityInfo(
+                best = "O(L)",
+                average = "O(L)",
+                worst = "O(L)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(total characters)",
+                average = "O(total characters)",
+                worst = "O(total characters)"
+            ),
+            difficultyLevel = DifficultyLevel.INTERMEDIATE,
+            defaultArraySize = 6
         ),
         // Dynamic Programming Algorithms
         Algorithm(
@@ -546,6 +615,57 @@ class AlgorithmProvider @Inject constructor() {
             ),
             difficultyLevel = DifficultyLevel.INTERMEDIATE,
             defaultArraySize = 6
+        ),
+        Algorithm(
+            id = "ternary_search",
+            name = "Ternary Search",
+            category = AlgorithmCategory.DIVIDE_AND_CONQUER,
+            description = "Divide sorted search space into three parts and recursively/iteratively shrink.",
+            timeComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(log n)",
+                worst = "O(log n)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(1)",
+                worst = "O(1)"
+            ),
+            difficultyLevel = DifficultyLevel.ADVANCED
+        ),
+        Algorithm(
+            id = "quick_select",
+            name = "Quick Select",
+            category = AlgorithmCategory.DIVIDE_AND_CONQUER,
+            description = "Find kth smallest element by partitioning similar to Quick Sort.",
+            timeComplexity = ComplexityInfo(
+                best = "O(n)",
+                average = "O(n)",
+                worst = "O(n²)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(1)",
+                average = "O(1)",
+                worst = "O(log n)"
+            ),
+            difficultyLevel = DifficultyLevel.ADVANCED
+        ),
+        Algorithm(
+            id = "maximum_subarray_dc",
+            name = "Maximum Subarray (D&C)",
+            category = AlgorithmCategory.DIVIDE_AND_CONQUER,
+            description = "Find maximum subarray sum using divide and conquer with crossing sums.",
+            timeComplexity = ComplexityInfo(
+                best = "O(n log n)",
+                average = "O(n log n)",
+                worst = "O(n log n)"
+            ),
+            spaceComplexity = ComplexityInfo(
+                best = "O(log n)",
+                average = "O(log n)",
+                worst = "O(log n)"
+            ),
+            difficultyLevel = DifficultyLevel.ADVANCED
         )
     )
     

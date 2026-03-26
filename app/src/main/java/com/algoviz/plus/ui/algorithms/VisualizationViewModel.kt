@@ -26,6 +26,13 @@ class VisualizationViewModel @Inject constructor(
     private val algorithmRepository: AlgorithmRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    data class AlgorithmInputSpec(
+        val key: String,
+        val label: String,
+        val placeholder: String,
+        val numeric: Boolean
+    )
     
     private val algorithmId: String = savedStateHandle["algorithmId"] ?: "bubble_sort"
     
@@ -37,6 +44,15 @@ class VisualizationViewModel @Inject constructor(
     
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    private val _algorithmParameterInput = MutableStateFlow("")
+    val algorithmParameterInput: StateFlow<String> = _algorithmParameterInput.asStateFlow()
+
+    private val _algorithmParameterError = MutableStateFlow<String?>(null)
+    val algorithmParameterError: StateFlow<String?> = _algorithmParameterError.asStateFlow()
+
+    private val _customInputError = MutableStateFlow<String?>(null)
+    val customInputError: StateFlow<String?> = _customInputError.asStateFlow()
     
     private var allSteps: List<AlgorithmStep> = emptyList()
     private var playbackJob: Job? = null
@@ -53,20 +69,105 @@ class VisualizationViewModel @Inject constructor(
     }
     
     fun generateInitialArray(size: Int = 6) {
-        val finalSize = _algorithm.value?.defaultArraySize ?: size
+        val finalSize = (_algorithm.value?.defaultArraySize ?: size).coerceAtMost(10)
         val randomArray = List(finalSize) { Random.nextInt(10, 100) }
         _visualizationState.value = VisualizationState(
             array = randomArray,
             totalSteps = 0
         )
         allSteps = emptyList()
+        _customInputError.value = null
+    }
+
+    fun applyCustomInput(rawInput: String) {
+        val trimmed = rawInput.trim()
+        if (trimmed.isEmpty()) {
+            _customInputError.value = "Enter values like: 5, 12, 3, 40"
+            return
+        }
+
+        val tokens = trimmed.split(Regex("[,\\s]+")).filter { it.isNotBlank() }
+        if (tokens.size > 10) {
+            _customInputError.value = "You can visualize up to 10 numbers only"
+            return
+        }
+
+        val parsed = mutableListOf<Int>()
+        for (token in tokens) {
+            val value = token.toIntOrNull()
+            if (value == null) {
+                _customInputError.value = "Invalid number: $token"
+                return
+            }
+            parsed.add(value)
+        }
+
+        if (parsed.isEmpty()) {
+            _customInputError.value = "Please enter at least one number"
+            return
+        }
+
+        pause()
+        _visualizationState.value = VisualizationState(
+            array = parsed,
+            totalSteps = 0
+        )
+        allSteps = emptyList()
+        _customInputError.value = null
+        generateSteps()
+    }
+
+    fun clearCustomInputError() {
+        _customInputError.value = null
+    }
+
+    fun getAlgorithmInputSpec(): AlgorithmInputSpec? {
+        return when (algorithmId) {
+            "linear_search", "binary_search", "jump_search", "interpolation_search", "exponential_search", "ternary_search", "bst_search" ->
+                AlgorithmInputSpec(
+                    key = "target",
+                    label = "Target Element",
+                    placeholder = "Enter number to search (optional)",
+                    numeric = true
+                )
+
+            "quick_select" ->
+                AlgorithmInputSpec(
+                    key = "kIndex",
+                    label = "k-th Index",
+                    placeholder = "Enter k index (0-based, optional)",
+                    numeric = true
+                )
+
+            "trie_operations" ->
+                AlgorithmInputSpec(
+                    key = "words",
+                    label = "Words",
+                    placeholder = "Comma separated words (optional)",
+                    numeric = false
+                )
+
+            else -> null
+        }
+    }
+
+    fun setAlgorithmParameterInput(value: String) {
+        _algorithmParameterInput.value = value
+        if (_algorithmParameterError.value != null) {
+            _algorithmParameterError.value = null
+        }
+    }
+
+    fun clearAlgorithmParameterError() {
+        _algorithmParameterError.value = null
     }
     
     fun generateSteps() {
         viewModelScope.launch {
+            val extraInput = buildExtraInputMap() ?: return@launch
             _isGenerating.value = true
             try {
-                val steps = generateStepsUseCase(algorithmId, _visualizationState.value.array)
+                val steps = generateStepsUseCase(algorithmId, _visualizationState.value.array, extraInput)
                 allSteps = steps
                 _visualizationState.value = _visualizationState.value.copy(
                     totalSteps = steps.size,
@@ -159,5 +260,28 @@ class VisualizationViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         playbackJob?.cancel()
+    }
+
+    private fun buildExtraInputMap(): Map<String, String>? {
+        val spec = getAlgorithmInputSpec() ?: return emptyMap()
+        val value = _algorithmParameterInput.value.trim()
+        if (value.isBlank()) {
+            return emptyMap()
+        }
+
+        if (spec.numeric && value.toIntOrNull() == null) {
+            _algorithmParameterError.value = "${spec.label} must be a valid number"
+            return null
+        }
+
+        if (spec.key == "kIndex") {
+            val k = value.toIntOrNull() ?: return emptyMap()
+            if (k < 0 || k >= _visualizationState.value.array.size) {
+                _algorithmParameterError.value = "k index must be between 0 and ${_visualizationState.value.array.lastIndex}"
+                return null
+            }
+        }
+
+        return mapOf(spec.key to value)
     }
 }

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.algoviz.plus.domain.model.Algorithm
+import com.algoviz.plus.domain.model.AlgorithmCategory
 import com.algoviz.plus.domain.model.PlaybackSpeed
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +50,11 @@ fun AlgorithmVisualizationScreen(
     val algorithm by viewModel.algorithm.collectAsStateWithLifecycle()
     val state by viewModel.visualizationState.collectAsStateWithLifecycle()
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
+    val customInputError by viewModel.customInputError.collectAsStateWithLifecycle()
+    val algorithmParameterInput by viewModel.algorithmParameterInput.collectAsStateWithLifecycle()
+    val algorithmParameterError by viewModel.algorithmParameterError.collectAsStateWithLifecycle()
+    val algorithmInputSpec = remember(algorithm?.id) { viewModel.getAlgorithmInputSpec() }
+    var customInput by remember { mutableStateOf("") }
     
     LaunchedEffect(Unit) {
         viewModel.generateSteps()
@@ -102,6 +109,11 @@ fun AlgorithmVisualizationScreen(
                 state = state,
                 algorithm = algorithm,
                 isGenerating = isGenerating,
+                customInput = customInput,
+                customInputError = customInputError,
+                algorithmInputSpec = algorithmInputSpec,
+                algorithmParameterInput = algorithmParameterInput,
+                algorithmParameterError = algorithmParameterError,
                 getCurrentStepData = { viewModel.getCurrentStepData() },
                 onPlay = { viewModel.play() },
                 onPause = { viewModel.pause() },
@@ -109,7 +121,16 @@ fun AlgorithmVisualizationScreen(
                 onStepBackward = { viewModel.stepBackward() },
                 onReset = { viewModel.reset() },
                 onSpeedChange = { viewModel.setSpeed(it) },
-                onGenerateNew = { viewModel.generateInitialArray() }
+                onGenerateNew = { viewModel.generateInitialArray() },
+                onAlgorithmParameterChange = { viewModel.setAlgorithmParameterInput(it) },
+                onApplyAlgorithmInput = { viewModel.generateSteps() },
+                onCustomInputChange = {
+                    customInput = it
+                    if (customInputError != null) {
+                        viewModel.clearCustomInputError()
+                    }
+                },
+                onApplyCustomInput = { viewModel.applyCustomInput(customInput) }
             )
         }
     }
@@ -130,11 +151,247 @@ private fun ComplexityBadge(text: String) {
     }
 }
 
+private data class AlgorithmKnowledge(
+    val keyConcept: String,
+    val pseudocode: List<String>,
+    val applications: List<String>
+)
+
+@Composable
+private fun KnowledgeSection(algorithm: Algorithm) {
+    val knowledge = remember(algorithm.id) { knowledgeForAlgorithm(algorithm) }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.08f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Key Concept",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = knowledge.keyConcept,
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.85f),
+                lineHeight = 19.sp
+            )
+
+            Text(
+                text = "Pseudocode",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            knowledge.pseudocode.forEachIndexed { index, line ->
+                Text(
+                    text = "${index + 1}. $line",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.82f),
+                    lineHeight = 18.sp
+                )
+            }
+
+            Text(
+                text = "Applications",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            knowledge.applications.forEachIndexed { index, line ->
+                Text(
+                    text = "${index + 1}. $line",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.82f),
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+private fun knowledgeForAlgorithm(algorithm: Algorithm): AlgorithmKnowledge {
+    return when (algorithm.id) {
+        "trie_operations" -> AlgorithmKnowledge(
+            keyConcept = "Trie stores words letter-by-letter, sharing common prefixes. Think of it like a city map where roads with same starting path are shared.",
+            pseudocode = listOf(
+                "Start at root node",
+                "For each character in word, move/create child node",
+                "After last character, mark end-of-word",
+                "For search, follow characters one by one",
+                "Word exists only if end-of-word mark is true"
+            ),
+            applications = listOf(
+                "Auto-complete suggestions in keyboards and search bars",
+                "Spell checking and dictionary matching",
+                "Prefix search in contacts and product catalogs"
+            )
+        )
+
+        "quick_select" -> AlgorithmKnowledge(
+            keyConcept = "Quick Select finds one rank (k-th smallest) without fully sorting. It keeps only the side where the answer can exist.",
+            pseudocode = listOf(
+                "Pick a pivot",
+                "Partition values smaller and bigger around pivot",
+                "If pivot index is k, answer found",
+                "If k is left of pivot, repeat on left side",
+                "Else repeat on right side"
+            ),
+            applications = listOf(
+                "Median and percentile analytics",
+                "Top-k and ranking systems",
+                "Fast threshold selection in dashboards"
+            )
+        )
+
+        else -> when (algorithm.category) {
+            AlgorithmCategory.SORTING -> AlgorithmKnowledge(
+                keyConcept = "Sorting arranges data in order so decisions become easier and faster, like arranging books by number before searching.",
+                pseudocode = listOf(
+                    "Read input list",
+                    "Compare elements based on algorithm rule",
+                    "Reorder elements when needed",
+                    "Repeat until list is ordered",
+                    "Return ordered list"
+                ),
+                applications = listOf(
+                    "Leaderboards and score ranking",
+                    "Report generation and data presentation",
+                    "Preparing data for faster searching"
+                )
+            )
+
+            AlgorithmCategory.SEARCHING -> AlgorithmKnowledge(
+                keyConcept = "Searching means finding one required item in a collection, like finding one name in a phone list.",
+                pseudocode = listOf(
+                    "Set target value",
+                    "Inspect one or more candidate positions",
+                    "If target found, return position",
+                    "Else narrow or continue the search",
+                    "If no candidates left, report not found"
+                ),
+                applications = listOf(
+                    "Contact lookup and search features",
+                    "Finding records in business data",
+                    "Search bars in apps and websites"
+                )
+            )
+
+            AlgorithmCategory.GRAPH -> AlgorithmKnowledge(
+                keyConcept = "Graph algorithms solve route and connection problems, like planning travel between cities or data links in a network.",
+                pseudocode = listOf(
+                    "Choose start node",
+                    "Visit nodes using algorithm strategy",
+                    "Track visited/processed nodes",
+                    "Update path or cost information",
+                    "Stop when objective is reached"
+                ),
+                applications = listOf(
+                    "Navigation and shortest routes",
+                    "Social network and recommendation systems",
+                    "Network design and optimization"
+                )
+            )
+
+            AlgorithmCategory.TREE -> AlgorithmKnowledge(
+                keyConcept = "Tree algorithms handle parent-child structures, like folders in a computer or categories in a shopping app.",
+                pseudocode = listOf(
+                    "Start from root node",
+                    "Move left/right or child nodes by rule",
+                    "Process node when visited",
+                    "Continue recursively/iteratively",
+                    "Return required result"
+                ),
+                applications = listOf(
+                    "Folder structures and menu systems",
+                    "Fast lookup in ordered datasets",
+                    "Expression parsing and decision flows"
+                )
+            )
+
+            AlgorithmCategory.DYNAMIC_PROGRAMMING -> AlgorithmKnowledge(
+                keyConcept = "Dynamic Programming breaks a big problem into smaller repeated parts and stores answers to avoid recomputing.",
+                pseudocode = listOf(
+                    "Define smaller subproblems",
+                    "Create table/cache for subproblem answers",
+                    "Fill answers in safe order",
+                    "Reuse cached values when needed",
+                    "Return final answer from table"
+                ),
+                applications = listOf(
+                    "Resource planning and optimization",
+                    "Sequence comparison in bio/text data",
+                    "Cost minimization and budgeting models"
+                )
+            )
+
+            AlgorithmCategory.GREEDY -> AlgorithmKnowledge(
+                keyConcept = "Greedy algorithms choose the best immediate step each time, aiming for a good final outcome quickly.",
+                pseudocode = listOf(
+                    "Sort or prioritize candidate choices",
+                    "Pick best local option",
+                    "Lock chosen option",
+                    "Repeat with remaining options",
+                    "Return built solution"
+                ),
+                applications = listOf(
+                    "Scheduling meetings or tasks",
+                    "Compression and coding",
+                    "Network and cost-saving planning"
+                )
+            )
+
+            AlgorithmCategory.BACKTRACKING -> AlgorithmKnowledge(
+                keyConcept = "Backtracking tries a path, and if it fails, it rolls back and tries another path, like solving a maze.",
+                pseudocode = listOf(
+                    "Try one valid option",
+                    "Move to next decision",
+                    "If dead-end, undo previous choice",
+                    "Try alternate option",
+                    "Stop when complete valid solution is found"
+                ),
+                applications = listOf(
+                    "Puzzle solvers like Sudoku",
+                    "Constraint-based planning",
+                    "Combinational search problems"
+                )
+            )
+
+            AlgorithmCategory.DIVIDE_AND_CONQUER -> AlgorithmKnowledge(
+                keyConcept = "Divide and Conquer splits a problem into smaller pieces, solves them, then combines results.",
+                pseudocode = listOf(
+                    "If problem is small, solve directly",
+                    "Divide into smaller subproblems",
+                    "Solve each subproblem",
+                    "Combine sub-results",
+                    "Return merged result"
+                ),
+                applications = listOf(
+                    "Fast searching and selection",
+                    "Parallel processing workflows",
+                    "Large-scale data computation"
+                )
+            )
+        }
+    }
+}
+
 @Composable
 private fun VisualizationTab(
     state: com.algoviz.plus.domain.model.VisualizationState,
     algorithm: com.algoviz.plus.domain.model.Algorithm?,
     isGenerating: Boolean,
+    customInput: String,
+    customInputError: String?,
+    algorithmInputSpec: VisualizationViewModel.AlgorithmInputSpec?,
+    algorithmParameterInput: String,
+    algorithmParameterError: String?,
     getCurrentStepData: () -> com.algoviz.plus.domain.model.AlgorithmStep?,
     onPlay: () -> Unit,
     onPause: () -> Unit,
@@ -142,7 +399,11 @@ private fun VisualizationTab(
     onStepBackward: () -> Unit,
     onReset: () -> Unit,
     onSpeedChange: (PlaybackSpeed) -> Unit,
-    onGenerateNew: () -> Unit
+    onGenerateNew: () -> Unit,
+    onAlgorithmParameterChange: (String) -> Unit,
+    onApplyAlgorithmInput: () -> Unit,
+    onCustomInputChange: (String) -> Unit,
+    onApplyCustomInput: () -> Unit
 ) {
     val maxStep = if (state.totalSteps > 0) state.totalSteps - 1 else 0
 
@@ -176,6 +437,78 @@ private fun VisualizationTab(
                         color = Color.White.copy(alpha = 0.7f),
                         lineHeight = 20.sp
                     )
+                }
+            }
+
+            KnowledgeSection(algorithm = it)
+        }
+
+        if (algorithmInputSpec != null) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = algorithmInputSpec.label,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Optional input for this algorithm. Leave blank to run default demo.",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.72f)
+                    )
+
+                    OutlinedTextField(
+                        value = algorithmParameterInput,
+                        onValueChange = onAlgorithmParameterChange,
+                        singleLine = true,
+                        placeholder = {
+                            Text(algorithmInputSpec.placeholder, color = Color.White.copy(alpha = 0.45f))
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF5EEAD4),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                            cursorColor = Color(0xFF5EEAD4),
+                            focusedContainerColor = Color.White.copy(alpha = 0.04f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.02f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = {
+                                onPause()
+                                onApplyAlgorithmInput()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF5EEAD4),
+                                contentColor = Color(0xFF1A1344)
+                            )
+                        ) {
+                            Text("Apply & Run", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    if (algorithmParameterError != null) {
+                        Text(
+                            text = algorithmParameterError,
+                            color = Color(0xFFFDA4AF),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
@@ -352,6 +685,74 @@ private fun VisualizationTab(
                             tint = if (!state.isPlaying) Color.White else Color.White.copy(alpha = 0.3f)
                         )
                     }
+                }
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color.White.copy(alpha = 0.08f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Custom Input (Histogram)",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = "Enter up to 10 numbers separated by commas or spaces",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.72f)
+                )
+
+                OutlinedTextField(
+                    value = customInput,
+                    onValueChange = onCustomInputChange,
+                    singleLine = true,
+                    placeholder = {
+                        Text("e.g. 45, 12, 77, 3, 9", color = Color.White.copy(alpha = 0.45f))
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF5EEAD4),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                        cursorColor = Color(0xFF5EEAD4),
+                        focusedContainerColor = Color.White.copy(alpha = 0.04f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.02f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = {
+                            onPause()
+                            onApplyCustomInput()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF5EEAD4),
+                            contentColor = Color(0xFF1A1344)
+                        )
+                    ) {
+                        Text("Apply Input", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                if (customInputError != null) {
+                    Text(
+                        text = customInputError,
+                        color = Color(0xFFFDA4AF),
+                        fontSize = 12.sp
+                    )
                 }
             }
         }

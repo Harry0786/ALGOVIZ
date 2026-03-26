@@ -7,7 +7,11 @@ import javax.inject.Inject
 class GenerateAlgorithmStepsUseCase @Inject constructor(
     private val repository: AlgorithmRepository
 ) {
-    suspend operator fun invoke(algorithmId: String, initialArray: List<Int>): List<AlgorithmStep> {
-        return repository.generateSteps(algorithmId, initialArray)
+    suspend operator fun invoke(
+        algorithmId: String,
+        initialArray: List<Int>,
+        extraInput: Map<String, String> = emptyMap()
+    ): List<AlgorithmStep> {
+        return repository.generateSteps(algorithmId, initialArray, extraInput)
     }
 }
