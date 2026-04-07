@@ -49,11 +49,11 @@ fun EmailTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            focusedBorderColor = Color(0xFF5EEAD4),
+            focusedBorderColor = Color(0xFFF3F4F6),
             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-            focusedLabelColor = Color(0xFF5EEAD4),
+            focusedLabelColor = Color(0xFFF3F4F6),
             unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-            cursorColor = Color(0xFF5EEAD4)
+            cursorColor = Color(0xFFF3F4F6)
         )
     )
 }
@@ -85,11 +85,11 @@ fun PasswordTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            focusedBorderColor = Color(0xFF5EEAD4),
+            focusedBorderColor = Color(0xFFF3F4F6),
             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-            focusedLabelColor = Color(0xFF5EEAD4),
+            focusedLabelColor = Color(0xFFF3F4F6),
             unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-            cursorColor = Color(0xFF5EEAD4)
+            cursorColor = Color(0xFFF3F4F6)
         ),
         trailingIcon = {
             IconButton(onClick = { passwordVisible = !passwordVisible }) {

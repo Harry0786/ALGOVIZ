@@ -143,9 +143,9 @@ fun LoginScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -226,7 +226,7 @@ fun LoginScreen(
                 TextButton(onClick = { showForgotPasswordDialog = true }) {
                     Text(
                         text = "Forgot Password?",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 14.sp
                     )
                 }
@@ -287,7 +287,7 @@ fun LoginScreen(
                 TextButton(onClick = onNavigateToRegister) {
                     Text(
                         text = "Sign Up",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -398,11 +398,11 @@ private fun ForgotPasswordDialog(
             TextButton(onClick = onDismiss, enabled = !isLoading) {
                 Text(
                     text = "Cancel",
-                    color = Color(0xFF5EEAD4)
+                    color = Color(0xFFF3F4F6)
                 )
             }
         },
-        containerColor = Color(0xFF1A1344),
+        containerColor = Color(0xFF0B0B0D),
         shape = RoundedCornerShape(16.dp)
     )
 }

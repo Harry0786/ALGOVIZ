@@ -20,12 +20,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        val darkPurple = Color(0xFF1A1344).toArgb()
+        val darkPurple = Color(0xFF0B0B0D).toArgb()
         
-        // Enable edge to edge with dark purple status bar and navigation bar
+            // Enable edge to edge with charcoal status and navigation bars
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(darkPurple),
-            navigationBarStyle = SystemBarStyle.dark(darkPurple)
+                statusBarStyle = SystemBarStyle.dark(darkPurple),
+                navigationBarStyle = SystemBarStyle.dark(darkPurple)
         )
         
         setContent {

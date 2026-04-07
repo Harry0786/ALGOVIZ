@@ -50,11 +50,11 @@ import java.util.*
 
 private object ChatThemeColors {
     val BackgroundTop = Color(0xFF251B5E)
-    val BackgroundMid = Color(0xFF2D1B69)
-    val BackgroundBottom = Color(0xFF3D2080)
+    val BackgroundMid = Color(0xFF141418)
+    val BackgroundBottom = Color(0xFF1A1A1F)
     val SurfacePrimary = Color(0xFF120B35)
-    val SurfaceSecondary = Color(0xFF2D1B69)
-    val AccentMint = Color(0xFF5EEAD4)
+    val SurfaceSecondary = Color(0xFF141418)
+    val AccentMint = Color(0xFFF3F4F6)
     val AccentMintDark = Color(0xFF14B8A6)
     val AccentIndigo = Color(0xFF4F46E5)
     val AccentIndigoLight = Color(0xFF6366F1)
@@ -70,8 +70,8 @@ private val ReceiverSenderPalette: List<Pair<Color, Color>> = listOf(
     Color(0xFFF472B6) to Color(0xFFEC4899),
     Color(0xFF34D399) to Color(0xFF10B981),
     Color(0xFFFBBF24) to Color(0xFFF59E0B),
-    Color(0xFFA78BFA) to Color(0xFF8B5CF6),
-    Color(0xFF22D3EE) to Color(0xFF06B6D4),
+    Color(0xFFA78BFA) to Color(0xFFBFC3C9),
+    Color(0xFF22D3EE) to Color(0xFFE5E7EB),
     Color(0xFFFB7185) to Color(0xFFF43F5E),
     Color(0xFF4ADE80) to Color(0xFF22C55E)
 )
@@ -720,7 +720,7 @@ fun ChatRoomScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
-                                        color = Color(0xFF2D1B69).copy(alpha = 0.5f),
+                                        color = Color(0xFF141418).copy(alpha = 0.5f),
                                         shape = RoundedCornerShape(10.dp)
                                     )
                                     .padding(12.dp)
@@ -809,7 +809,7 @@ fun ChatRoomScreen(
                     onClick = { showDeleteGroupConfirm = false },
                     enabled = !isDeletingRoom
                 ) {
-                    Text("Cancel", color = Color(0xFF5EEAD4))
+                    Text("Cancel", color = Color(0xFFF3F4F6))
                 }
             }
         )

@@ -34,7 +34,7 @@ fun PrimaryButton(
         modifier = modifier.fillMaxWidth(),
         enabled = enabled && !isLoading,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF06B6D4),
+            containerColor = Color(0xFFE5E7EB),
             contentColor = Color.White
         ),
         shape = RoundedCornerShape(12.dp)

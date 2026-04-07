@@ -106,6 +106,23 @@ class LearnViewModel @Inject constructor(
                 initialValue = emptyList()
             )
 
+    val overallLearningProgress: StateFlow<Float> =
+        completionMap
+            .combine(kotlinx.coroutines.flow.flowOf(sheets)) { completion, allSheets ->
+                val allItems = allSheets.flatMap { it.allItems }
+                if (allItems.isEmpty()) {
+                    0f
+                } else {
+                    val completedCount = allItems.count { completion[it.id] == true }
+                    completedCount.toFloat() / allItems.size.toFloat()
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = 0f
+            )
+
     val playlists: StateFlow<List<LearnPlaylist>> =
         preferencesManager.learnPlaylists
             .combine(kotlinx.coroutines.flow.flowOf(sheets)) { stored, _ ->

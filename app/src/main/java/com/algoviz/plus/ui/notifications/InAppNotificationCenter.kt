@@ -234,7 +234,7 @@ private data class NotificationPalette(
     companion object {
         fun info() = NotificationPalette(
             container = Color(0xFF24165C).copy(alpha = 0.97f),
-            border = Color(0xFF8B5CF6).copy(alpha = 0.4f),
+            border = Color(0xFFBFC3C9).copy(alpha = 0.4f),
             iconBackground = Color(0xFF31206F),
             iconTint = Color(0xFFC4B5FD),
             icon = Icons.Default.NotificationsActive

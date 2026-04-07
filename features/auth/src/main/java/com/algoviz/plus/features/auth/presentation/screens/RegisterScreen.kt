@@ -82,9 +82,9 @@ fun RegisterScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -192,7 +192,7 @@ fun RegisterScreen(
                 TextButton(onClick = onNavigateToLogin) {
                     Text(
                         text = "Sign In",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontWeight = FontWeight.SemiBold
                     )
                 }

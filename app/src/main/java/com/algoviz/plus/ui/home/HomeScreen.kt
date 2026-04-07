@@ -5,8 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +39,7 @@ import com.algoviz.plus.features.auth.presentation.components.PasswordTextField
 import com.algoviz.plus.features.auth.presentation.components.PrimaryButton
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
+import com.algoviz.plus.ui.learn.viewmodel.HomeSheetProgress
 import com.algoviz.plus.ui.profile.ProfileViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.algoviz.plus.BuildConfig
@@ -82,10 +87,11 @@ fun HomeScreen(
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
     val sheetProgressList by learnViewModel.homeSheetProgress.collectAsStateWithLifecycle()
+    val overallLearningProgress by learnViewModel.overallLearningProgress.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    
+
     var showChangePasswordDialog by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(authUiState) {
         when (authUiState) {
             is AuthUiState.PasswordChanged -> {
@@ -117,7 +123,7 @@ fun HomeScreen(
             else -> {}
         }
     }
-    
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -134,33 +140,33 @@ fun HomeScreen(
                             showChangePasswordDialog = true
                         },
                         onShareAppClick = {
-                            scope.launch { 
+                            scope.launch {
                                 drawerState.close()
                                 try {
                                     // Get APK path
                                     val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                                     val apkPath = packageInfo.applicationInfo.sourceDir
                                     val apkFile = File(apkPath)
-                                    
+
                                     if (apkFile.exists()) {
                                         // Copy APK to cache directory
                                         val cacheDir = File(context.cacheDir, "apk")
                                         if (!cacheDir.exists()) cacheDir.mkdirs()
-                                        
+
                                         val copiedApk = File(cacheDir, "AlgoViz.apk")
                                         apkFile.inputStream().use { input ->
                                             copiedApk.outputStream().use { output ->
                                                 input.copyTo(output)
                                             }
                                         }
-                                        
+
                                         // Get URI for the copied APK
                                         val apkUri = FileProvider.getUriForFile(
                                             context,
                                             "${context.packageName}.provider",
                                             copiedApk
                                         )
-                                        
+
                                         // Share the APK
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "application/vnd.android.package-archive"
@@ -169,7 +175,7 @@ fun HomeScreen(
                                             putExtra(Intent.EXTRA_TEXT, "Check out AlgoViz+ - Learn algorithms through visualization!")
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
-                                        
+
                                         context.startActivity(Intent.createChooser(shareIntent, "Share AlgoViz+ App"))
                                     } else {
                                         InAppNotificationCenter.post(
@@ -208,33 +214,34 @@ fun HomeScreen(
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Scaffold(
                     containerColor = Color.Transparent
-                ) { _ ->
-        Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        Modifier.blur(radius = 16.dp)
-                    } else {
-                        Modifier
-                    }
-                )
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .verticalScroll(scrollState)
-        ) {
+                ) { contentPadding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(contentPadding)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0xFF0B0B0D),
+                                        Color(0xFF141418),
+                                        Color(0xFF1A1A1F)
+                                    )
+                                )
+                            )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        Modifier.blur(radius = 16.dp)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .windowInsetsPadding(WindowInsets.statusBars)
+                                .verticalScroll(scrollState)
+                        ) {
             // Top Bar
             Row(
                 modifier = Modifier
@@ -255,7 +262,7 @@ fun HomeScreen(
                         color = Color.White
                     )
                 }
-                
+
                 IconButton(
                     onClick = {
                         scope.launch {
@@ -275,129 +282,99 @@ fun HomeScreen(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(40.dp))
-            
-            // Welcome Section
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Text(
-                    text = "Welcome Back",
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Master Algorithms\nThrough Visualization",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    lineHeight = 38.sp
-                )
-                Text(
-                    text = "Interactive learning platform for data structures and algorithms",
-                    fontSize = 15.sp,
-                    color = Color.White.copy(alpha = 0.65f),
-                    lineHeight = 22.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(40.dp))
-            
-            // Quick Actions Grid
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Quick Start",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-                
+                WelcomePill(userProfile = userProfile)
+                ProgressCard(progress = overallLearningProgress)
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    QuickActionCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.PlayArrow,
-                        title = "Visualize",
-                        subtitle = "Algorithms",
-                        gradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2)),
-                        onClick = onVisualize
+                    Text(
+                        text = "Quick Actions",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
                     )
-                    QuickActionCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.Groups,
-                        title = "Study Rooms",
-                        subtitle = "Collaborate",
-                        gradient = listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)),
-                        onClick = onStudyRooms
+                    Text(
+                        text = "VIEW ALL",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.88f),
+                        letterSpacing = 1.sp
                     )
                 }
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuickActionCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.School,
-                        title = "Learn",
-                        subtitle = "Concepts",
-                        gradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777)),
-                        onClick = onLearn
-                    )
-                    QuickActionCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.Person,
-                        title = "Profile",
-                        subtitle = "Account",
-                        gradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
-                        onClick = onProfileClick
-                    )
+
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        DashboardActionCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.PlayArrow,
+                            title = "Visualize",
+                            subtitle = "Algorithms",
+                            onClick = onVisualize
+                        )
+                        DashboardActionCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.Groups,
+                            title = "Study",
+                            subtitle = "Rooms",
+                            onClick = onStudyRooms
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        DashboardActionCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.School,
+                            title = "Learn",
+                            subtitle = "Concepts",
+                            onClick = onLearn
+                        )
+                        DashboardActionCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.Person,
+                            title = "Profile",
+                            subtitle = "Settings",
+                            onClick = onProfileClick
+                        )
+                    }
                 }
-            }
-            
-            Spacer(modifier = Modifier.height(40.dp))
-            
-            // Sheet Progress
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
-                    text = "Sheet Progress",
-                    fontSize = 18.sp,
+                    text = "Curated Sheets",
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
 
                 sheetProgressList.forEachIndexed { index, item ->
-                    val icon = when (index % 3) {
-                        0 -> Icons.Outlined.MenuBook
-                        1 -> Icons.Outlined.AccountTree
-                        else -> Icons.Outlined.School
-                    }
-                    TopicCard(
-                        icon = icon,
+                    CuratedSheetCard(
                         title = item.title,
-                        description = item.subtitle,
-                        progress = item.progress
+                        subtitle = item.subtitle,
+                        progress = item.progress,
+                        glowIndex = index
                     )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            
+
             Spacer(modifier = Modifier.height(32.dp))
         }
 
@@ -413,7 +390,7 @@ fun HomeScreen(
             }
         }
     }
-    
+
     if (showChangePasswordDialog) {
         ChangePasswordDialog(
             onDismiss = { showChangePasswordDialog = false },
@@ -460,7 +437,7 @@ private fun QuickActionCard(
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)
                 )
-                
+
                 Column {
                     Text(
                         text = subtitle,
@@ -475,6 +452,271 @@ private fun QuickActionCard(
                         color = Color.White
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WelcomePill(userProfile: com.algoviz.plus.ui.profile.UserProfile) {
+    val initial = userProfile.name.firstOrNull()?.uppercase() ?: "U"
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        color = Color(0xFF101013).copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.92f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = initial, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "WELCOME BACK",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 2.sp,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = "Hi, ${userProfile.name.takeIf { it.isNotBlank() } ?: "Anupam"}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color.White
+            ) {
+                Text(
+                    text = "Oct 24",
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                    color = Color(0xFF111111),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressCard(progress: Float) {
+    val completed = (progress.coerceIn(0f, 1f) * 100).toInt()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(34.dp),
+        color = Color(0xFF2A2A2D).copy(alpha = 0.96f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "LEARNING PROGRESS",
+                fontSize = 12.sp,
+                letterSpacing = 2.sp,
+                color = Color.White.copy(alpha = 0.7f),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    text = "$completed%",
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+                Text(
+                    text = "Completed",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = Color.White,
+                trackColor = Color.Black.copy(alpha = 0.65f)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "DAY 45 STREAK",
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "128/180 PROBLEMS",
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardActionCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(140.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = Color(0xFF242427).copy(alpha = 0.98f),
+        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.75f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF111111),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CuratedSheetCard(
+    title: String,
+    subtitle: String,
+    progress: Float,
+    glowIndex: Int
+) {
+    val glowColors = listOf(
+        Color(0xFF2B2B2F),
+        Color(0xFF17181B),
+        Color(0xFF222226)
+    )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.92f))
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(glowColors[glowIndex % glowColors.size], Color(0xFF0B0B0D))
+                    )
+                )
+                .padding(18.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(27.dp))
+                            .background(Color.White.copy(alpha = 0.08f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title.firstOrNull()?.uppercase() ?: "S",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = subtitle.uppercase(),
+                            color = Color.White.copy(alpha = 0.72f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.14f)
+                )
             }
         }
     }
@@ -505,17 +747,17 @@ private fun TopicCard(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF5EEAD4).copy(alpha = 0.2f)),
+                        .background(Color(0xFFF3F4F6).copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color(0xFF5EEAD4),
+                        tint = Color(0xFFF3F4F6),
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                
+
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -531,22 +773,22 @@ private fun TopicCard(
                         color = Color.White.copy(alpha = 0.6f)
                     )
                 }
-                
+
                 Text(
                     text = "${(progress * 100).toInt()}%",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF5EEAD4)
+                    color = Color(0xFFF3F4F6)
                 )
             }
-            
+
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = Color(0xFF5EEAD4),
+                color = Color(0xFFF3F4F6),
                 trackColor = Color.White.copy(alpha = 0.1f),
             )
         }
@@ -563,16 +805,16 @@ private fun UserDrawerContent(
 ) {
     val versionLabel = "Version ${BuildConfig.VERSION_NAME.substringBefore('-')}"
     val avatarColors = listOf(
-        listOf(Color(0xFF5EEAD4), Color(0xFF06B6D4)), // Cyan
-        listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)), // Purple
+        listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB)), // Cyan
+        listOf(Color(0xFFBFC3C9), Color(0xFF9EA4AD)), // Purple
         listOf(Color(0xFFEC4899), Color(0xFFDB2777)), // Pink
         listOf(Color(0xFF10B981), Color(0xFF059669)), // Green
         listOf(Color(0xFFF59E0B), Color(0xFFD97706)), // Orange
         listOf(Color(0xFFEF4444), Color(0xFFDC2626))  // Red
     )
-    
+
     ModalDrawerSheet(
-        drawerContainerColor = Color(0xFF1A1344),
+        drawerContainerColor = Color(0xFF0B0B0D),
         drawerContentColor = Color.White
     ) {
         Column(
@@ -582,15 +824,15 @@ private fun UserDrawerContent(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF1A1344),
-                            Color(0xFF2D1B69),
-                            Color(0xFF1A1344)
+                            Color(0xFF0B0B0D),
+                            Color(0xFF141418),
+                            Color(0xFF0B0B0D)
                         )
                     )
                 )
         ) {
             Spacer(modifier = Modifier.height(48.dp))
-            
+
             // User Profile Section - Clickable
             Surface(
                 onClick = onProfileClick,
@@ -610,7 +852,7 @@ private fun UserDrawerContent(
                         .clip(RoundedCornerShape(48.dp))
                         .background(
                             brush = Brush.linearGradient(
-                                colors = avatarColors.getOrNull(userProfile.avatarColorIndex) 
+                                colors = avatarColors.getOrNull(userProfile.avatarColorIndex)
                                     ?: avatarColors[0]
                             )
                         ),
@@ -634,7 +876,7 @@ private fun UserDrawerContent(
                         )
                     }
                 }
-                
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -645,44 +887,44 @@ private fun UserDrawerContent(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    
+
                     Text(
                         text = userProfile.email,
                         fontSize = 14.sp,
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
             }
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             // Menu Items
             DrawerMenuItem(
                 icon = Icons.Outlined.Person,
                 title = "Profile",
                 onClick = onProfileClick
             )
-            
+
             DrawerMenuItem(
                 icon = Icons.Outlined.Lock,
                 title = "Change Password",
                 onClick = onChangePasswordClick
             )
-            
+
             DrawerMenuItem(
                 icon = Icons.Outlined.Favorite,
                 title = "Favorites",
                 onClick = { /* Navigate to favorites */ }
             )
-            
+
             DrawerMenuItem(
                 icon = Icons.Outlined.Share,
                 title = "Share App",
                 onClick = onShareAppClick
             )
-            
+
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
@@ -697,12 +939,12 @@ private fun UserDrawerContent(
             )
 
             Spacer(modifier = Modifier.height(10.dp))
-            
+
             HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
-            
+
             // Logout Button
             DrawerMenuItem(
                 icon = Icons.AutoMirrored.Outlined.ExitToApp,
@@ -710,7 +952,7 @@ private fun UserDrawerContent(
                 onClick = onLogoutClick,
                 isDestructive = true
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -744,21 +986,21 @@ private fun DrawerMenuItem(
                     .size(40.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isDestructive) 
+                        if (isDestructive)
                             Color(0xFFEF4444).copy(alpha = 0.15f)
-                        else 
-                            Color(0xFF5EEAD4).copy(alpha = 0.1f)
+                        else
+                            Color(0xFFF3F4F6).copy(alpha = 0.1f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = if (isDestructive) Color(0xFFEF4444) else Color(0xFF5EEAD4),
+                    tint = if (isDestructive) Color(0xFFEF4444) else Color(0xFFF3F4F6),
                     modifier = Modifier.size(20.dp)
                 )
             }
-            
+
             Text(
                 text = title,
                 fontSize = 15.sp,
@@ -777,7 +1019,7 @@ private fun AppLogo(
 ) {
     val context = LocalContext.current
     val drawable = ContextCompat.getDrawable(context, com.algoviz.plus.R.mipmap.ic_launcher)
-    
+
     val painter = remember(drawable) {
         drawable?.let {
             val bitmap = if (it is BitmapDrawable) {
@@ -796,7 +1038,7 @@ private fun AppLogo(
             BitmapPainter(bitmap.asImageBitmap())
         }
     }
-    
+
     if (painter != null) {
         Image(
             painter = painter,
@@ -818,7 +1060,7 @@ private fun ChangePasswordDialog(
     var newPassword by remember { mutableStateOf("") }
     var confirmNewPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -832,38 +1074,38 @@ private fun ChangePasswordDialog(
             Column {
                 PasswordTextField(
                     value = currentPassword,
-                    onValueChange = { 
+                    onValueChange = {
                         currentPassword = it
                         errorMessage = null
                     },
                     label = "Current Password",
                     imeAction = ImeAction.Next
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 PasswordTextField(
                     value = newPassword,
-                    onValueChange = { 
+                    onValueChange = {
                         newPassword = it
                         errorMessage = null
                     },
                     label = "New Password",
                     imeAction = ImeAction.Next
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 PasswordTextField(
                     value = confirmNewPassword,
-                    onValueChange = { 
+                    onValueChange = {
                         confirmNewPassword = it
                         errorMessage = null
                     },
                     label = "Confirm New Password",
                     imeAction = ImeAction.Done
                 )
-                
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -902,11 +1144,11 @@ private fun ChangePasswordDialog(
             TextButton(onClick = onDismiss, enabled = !isLoading) {
                 Text(
                     text = "Cancel",
-                    color = Color(0xFF5EEAD4)
+                    color = Color(0xFFF3F4F6)
                 )
             }
         },
-        containerColor = Color(0xFF1A1344),
+        containerColor = Color(0xFF0B0B0D),
         shape = RoundedCornerShape(16.dp)
     )
 }

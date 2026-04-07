@@ -131,9 +131,9 @@ fun LearnScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -326,7 +326,7 @@ private fun LearnSheetList(
                 Icon(
                     imageVector = Icons.Outlined.AddCircle,
                     contentDescription = "Create Own Sheet",
-                    tint = Color(0xFF5EEAD4)
+                    tint = Color(0xFFF3F4F6)
                 )
             }
         }
@@ -368,7 +368,7 @@ private fun LearnSheetList(
                             )
                             Text(
                                 text = "${playlist.itemIds.size} topics",
-                                color = Color(0xFF5EEAD4),
+                                color = Color(0xFFF3F4F6),
                                 fontSize = 11.sp
                             )
                         }
@@ -404,12 +404,12 @@ private fun LearnSheetList(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
-                    color = Color(0xFF5EEAD4),
+                    color = Color(0xFFF3F4F6),
                     trackColor = Color.White.copy(alpha = 0.12f)
                 )
                 Text(
                     text = "Overall progress ${(overallProgress * 100).toInt()}%",
-                    color = Color(0xFF5EEAD4),
+                    color = Color(0xFFF3F4F6),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -420,10 +420,10 @@ private fun LearnSheetList(
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF5EEAD4).copy(alpha = 0.18f),
+                color = Color(0xFFF3F4F6).copy(alpha = 0.18f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0xFF5EEAD4).copy(alpha = 0.35f), RoundedCornerShape(18.dp))
+                    .border(1.dp, Color(0xFFF3F4F6).copy(alpha = 0.35f), RoundedCornerShape(18.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
@@ -431,7 +431,7 @@ private fun LearnSheetList(
                 ) {
                     Text(
                         text = "Continue Learning",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -449,8 +449,8 @@ private fun LearnSheetList(
                     Button(
                         onClick = { onContinueLearning(continueTarget) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5EEAD4),
-                            contentColor = Color(0xFF1A1344)
+                            containerColor = Color(0xFFF3F4F6),
+                            contentColor = Color(0xFF0B0B0D)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -479,7 +479,7 @@ private fun LearnSheetList(
                     ) {
                         Text(
                             text = sheet.influencer,
-                            color = Color(0xFF5EEAD4),
+                            color = Color(0xFFF3F4F6),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -512,12 +512,12 @@ private fun LearnSheetList(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(7.dp),
-                            color = Color(0xFF5EEAD4),
+                            color = Color(0xFFF3F4F6),
                             trackColor = Color.White.copy(alpha = 0.12f)
                         )
                         Text(
                             text = "${(progress * 100).toInt()}% completed",
-                            color = Color(0xFF5EEAD4),
+                            color = Color(0xFFF3F4F6),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -563,7 +563,7 @@ private fun LearnSectionList(
                 Column {
                     Text(
                         text = sheet.influencer,
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -575,7 +575,7 @@ private fun LearnSectionList(
                     )
                     Text(
                         text = "${(progress * 100).toInt()}% complete",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -604,7 +604,7 @@ private fun LearnSectionList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
-                color = Color(0xFF5EEAD4),
+                color = Color(0xFFF3F4F6),
                 trackColor = Color.White.copy(alpha = 0.14f)
             )
         }
@@ -656,7 +656,7 @@ private fun LearnSectionList(
                             label = { Text("$completedCount/${section.items.size}") },
                             colors = AssistChipDefaults.assistChipColors(
                                 disabledContainerColor = Color.White.copy(alpha = 0.11f),
-                                disabledLabelColor = Color(0xFF5EEAD4)
+                                disabledLabelColor = Color(0xFFF3F4F6)
                             )
                         )
                     }
@@ -666,7 +666,7 @@ private fun LearnSectionList(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp),
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         trackColor = Color.White.copy(alpha = 0.12f)
                     )
                 }
@@ -735,7 +735,7 @@ private fun LearnTopicList(
                 Column {
                     Text(
                         text = sheetTitle,
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -758,7 +758,7 @@ private fun LearnTopicList(
                     Icon(
                         imageVector = Icons.Outlined.PlaylistPlay,
                         contentDescription = "Add Section To Playlist",
-                        tint = Color(0xFF5EEAD4)
+                        tint = Color(0xFFF3F4F6)
                     )
                 }
             }
@@ -780,11 +780,11 @@ private fun LearnTopicList(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF5EEAD4),
+                    focusedBorderColor = Color(0xFFF3F4F6),
                     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                     focusedContainerColor = Color.White.copy(alpha = 0.05f),
                     unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
-                    cursorColor = Color(0xFF5EEAD4)
+                    cursorColor = Color(0xFFF3F4F6)
                 ),
                 shape = RoundedCornerShape(14.dp)
             )
@@ -814,8 +814,8 @@ private fun LearnTopicList(
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Color.White.copy(alpha = 0.09f),
                             labelColor = Color.White.copy(alpha = 0.8f),
-                            selectedContainerColor = Color(0xFF5EEAD4),
-                            selectedLabelColor = Color(0xFF1A1344)
+                            selectedContainerColor = Color(0xFFF3F4F6),
+                            selectedLabelColor = Color(0xFF0B0B0D)
                         )
                     )
                 }
@@ -866,7 +866,7 @@ private fun LearnTopicCard(
     Card(
         onClick = onOpenTopic,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2D1B69).copy(alpha = 0.42f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF141418).copy(alpha = 0.42f))
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -881,8 +881,8 @@ private fun LearnTopicCard(
                     checked = isCompleted,
                     onCheckedChange = onToggleComplete,
                     colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF5EEAD4),
-                        checkmarkColor = Color(0xFF1A1344),
+                        checkedColor = Color(0xFFF3F4F6),
+                        checkmarkColor = Color(0xFF0B0B0D),
                         uncheckedColor = Color.White.copy(alpha = 0.5f)
                     )
                 )
@@ -897,7 +897,7 @@ private fun LearnTopicCard(
                     Icon(
                         imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF5EEAD4),
+                        tint = Color(0xFFF3F4F6),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -996,7 +996,7 @@ private fun LearnTopicDetail(
                 Column {
                     Text(
                         text = "$sheetTitle • $sectionTitle",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1044,8 +1044,8 @@ private fun LearnTopicDetail(
                                 )
                             },
                             colors = AssistChipDefaults.assistChipColors(
-                                disabledContainerColor = if (isCompleted) Color(0xFF5EEAD4).copy(alpha = 0.25f) else Color.White.copy(alpha = 0.11f),
-                                disabledLabelColor = if (isCompleted) Color(0xFF5EEAD4) else Color.White.copy(alpha = 0.78f)
+                                disabledContainerColor = if (isCompleted) Color(0xFFF3F4F6).copy(alpha = 0.25f) else Color.White.copy(alpha = 0.11f),
+                                disabledLabelColor = if (isCompleted) Color(0xFFF3F4F6) else Color.White.copy(alpha = 0.78f)
                             )
                         )
                     }
@@ -1091,13 +1091,13 @@ private fun LearnTopicDetail(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF5EEAD4).copy(alpha = 0.20f),
+                                    color = Color(0xFFF3F4F6).copy(alpha = 0.20f),
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
                                             text = "${index + 1}",
-                                            color = Color(0xFF5EEAD4),
+                                            color = Color(0xFFF3F4F6),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1117,8 +1117,8 @@ private fun LearnTopicDetail(
                     Button(
                         onClick = { onToggleComplete(item.id, !isCompleted) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isCompleted) Color.White.copy(alpha = 0.16f) else Color(0xFF5EEAD4),
-                            contentColor = if (isCompleted) Color.White else Color(0xFF1A1344)
+                            containerColor = if (isCompleted) Color.White.copy(alpha = 0.16f) else Color(0xFFF3F4F6),
+                            contentColor = if (isCompleted) Color.White else Color(0xFF0B0B0D)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1146,8 +1146,8 @@ private fun LearnTopicDetail(
                         Button(
                             onClick = { onVisualizeAlgorithm(item.algorithmId) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF5EEAD4),
-                                contentColor = Color(0xFF1A1344)
+                                containerColor = Color(0xFFF3F4F6),
+                                contentColor = Color(0xFF0B0B0D)
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1212,7 +1212,7 @@ private fun TheoryApproachCard(
         ) {
             Text(
                 text = title,
-                color = Color(0xFF5EEAD4),
+                color = Color(0xFFF3F4F6),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp
             )
@@ -1258,7 +1258,7 @@ private fun LearnPlaylistTopics(
                 Column {
                     Text(
                         text = "Create Own Sheet",
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )

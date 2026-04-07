@@ -82,9 +82,9 @@ fun AdminAppUpdateScreen(
 
     val bg = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF1A1344),
-            Color(0xFF2D1B69),
-            Color(0xFF3D2080)
+            Color(0xFF0B0B0D),
+            Color(0xFF141418),
+            Color(0xFF1A1A1F)
         )
     )
 
@@ -195,15 +195,15 @@ fun AdminAppUpdateScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344)
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF0B0B0D)
                     )
                 ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = Color(0xFF1A1344)
+                            color = Color(0xFF0B0B0D)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Publishing...", fontWeight = FontWeight.Bold)
@@ -222,11 +222,11 @@ fun AdminAppUpdateScreen(
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = Color.White,
     unfocusedTextColor = Color.White,
-    focusedBorderColor = Color(0xFF5EEAD4),
+    focusedBorderColor = Color(0xFFF3F4F6),
     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-    focusedLabelColor = Color(0xFF5EEAD4),
+    focusedLabelColor = Color(0xFFF3F4F6),
     unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-    cursorColor = Color(0xFF5EEAD4),
-    focusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.3f),
-    unfocusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.2f)
+    cursorColor = Color(0xFFF3F4F6),
+    focusedContainerColor = Color(0xFF141418).copy(alpha = 0.3f),
+    unfocusedContainerColor = Color(0xFF141418).copy(alpha = 0.2f)
 )

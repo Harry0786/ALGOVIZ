@@ -66,9 +66,9 @@ fun AlgorithmVisualizationScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -146,7 +146,7 @@ private fun ComplexityBadge(text: String) {
             text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
             fontSize = 11.sp,
-            color = Color(0xFF5EEAD4)
+            color = Color(0xFFF3F4F6)
         )
     }
 }
@@ -475,9 +475,9 @@ private fun VisualizationTab(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
+                            focusedBorderColor = Color(0xFFF3F4F6),
                             unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                            cursorColor = Color(0xFF5EEAD4),
+                            cursorColor = Color(0xFFF3F4F6),
                             focusedContainerColor = Color.White.copy(alpha = 0.04f),
                             unfocusedContainerColor = Color.White.copy(alpha = 0.02f)
                         ),
@@ -494,8 +494,8 @@ private fun VisualizationTab(
                                 onApplyAlgorithmInput()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF5EEAD4),
-                                contentColor = Color(0xFF1A1344)
+                                containerColor = Color(0xFFF3F4F6),
+                                contentColor = Color(0xFF0B0B0D)
                             )
                         ) {
                             Text("Apply & Run", fontWeight = FontWeight.SemiBold)
@@ -516,7 +516,7 @@ private fun VisualizationTab(
         // Playback Controls
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF2D1B69)
+            color = Color(0xFF141418)
         ) {
             var speedMenuExpanded by remember { mutableStateOf(false) }
 
@@ -538,7 +538,7 @@ private fun VisualizationTab(
                             .weight(1f)
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = Color(0xFF5EEAD4),
+                        color = Color(0xFFF3F4F6),
                         trackColor = Color.White.copy(alpha = 0.2f)
                     )
                     
@@ -640,8 +640,8 @@ private fun VisualizationTab(
                             speedMenuExpanded = false
                             if (state.isPlaying) onPause() else onPlay()
                         },
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344),
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF0B0B0D),
                         modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
@@ -720,9 +720,9 @@ private fun VisualizationTab(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF5EEAD4),
+                        focusedBorderColor = Color(0xFFF3F4F6),
                         unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                        cursorColor = Color(0xFF5EEAD4),
+                        cursorColor = Color(0xFFF3F4F6),
                         focusedContainerColor = Color.White.copy(alpha = 0.04f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.02f)
                     ),
@@ -739,8 +739,8 @@ private fun VisualizationTab(
                             onApplyCustomInput()
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5EEAD4),
-                            contentColor = Color(0xFF1A1344)
+                            containerColor = Color(0xFFF3F4F6),
+                            contentColor = Color(0xFF0B0B0D)
                         )
                     ) {
                         Text("Apply Input", fontWeight = FontWeight.SemiBold)
@@ -770,7 +770,7 @@ private fun VisualizationTab(
                     .fillMaxHeight(),
                 value = "${(if (maxStep > 0) (state.currentStep.toFloat() / maxStep * 100).toInt() else 0)}%",
                 label = "Progress",
-                color = Color(0xFF06B6D4)
+                color = Color(0xFFE5E7EB)
             )
             StatCard(
                 modifier = Modifier
@@ -843,7 +843,7 @@ private fun VisualizationTab(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF5EEAD4))
+                        CircularProgressIndicator(color = Color(0xFFF3F4F6))
                         Text(
                             text = "Generating steps...",
                             color = Color.White,
@@ -933,7 +933,7 @@ private fun StatCard(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF2D1B69),
+        color = Color(0xFF141418),
         modifier = modifier
     ) {
         Column(
@@ -1136,7 +1136,7 @@ private fun BarChartVisualization(
                         val indexBadgeColor = when {
                             swappingIndices.contains(index) -> Color(0xFFEF4444).copy(alpha = 0.35f)
                             comparingIndices.contains(index) -> Color(0xFFF59E0B).copy(alpha = 0.35f)
-                            else -> Color(0xFF5EEAD4).copy(alpha = 0.28f)
+                            else -> Color(0xFFF3F4F6).copy(alpha = 0.28f)
                         }
                         val indexTextColor = when {
                             swappingIndices.contains(index) -> Color(0xFFFECACA)

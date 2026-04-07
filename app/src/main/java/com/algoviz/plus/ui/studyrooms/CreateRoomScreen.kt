@@ -69,14 +69,14 @@ fun CreateRoomScreen(
     }
 
     val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(Color(0xFF1A1344), Color(0xFF2D1B69), Color(0xFF3D2080))
+        colors = listOf(Color(0xFF0B0B0D), Color(0xFF141418), Color(0xFF1A1A1F))
     )
 
     Scaffold(
         modifier = Modifier.background(backgroundBrush),
         containerColor = Color.Transparent,
         topBar = {
-            Surface(color = Color(0xFF1A1344).copy(alpha = 0.95f)) {
+            Surface(color = Color(0xFF0B0B0D).copy(alpha = 0.95f)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,7 +127,7 @@ fun CreateRoomScreen(
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
-                                        colors = listOf(Color(0xFF5EEAD4), Color(0xFF14B8A6))
+                                        colors = listOf(Color(0xFFF3F4F6), Color(0xFF14B8A6))
                                     )
                                 ),
                             contentAlignment = Alignment.Center
@@ -135,7 +135,7 @@ fun CreateRoomScreen(
                             Icon(
                                 Icons.Default.Group,
                                 contentDescription = null,
-                                tint = Color(0xFF1A1344),
+                                tint = Color(0xFF0B0B0D),
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -217,12 +217,12 @@ fun CreateRoomScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF5EEAD4).copy(alpha = 0.15f))
+                                .background(Color(0xFFF3F4F6).copy(alpha = 0.15f))
                                 .padding(horizontal = 12.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = maxMembers.toInt().toString(),
-                                color = Color(0xFF5EEAD4),
+                                color = Color(0xFFF3F4F6),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
@@ -236,8 +236,8 @@ fun CreateRoomScreen(
                         steps = 97,
                         enabled = !isLoading,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF5EEAD4),
-                            activeTrackColor = Color(0xFF5EEAD4),
+                            thumbColor = Color(0xFFF3F4F6),
+                            activeTrackColor = Color(0xFFF3F4F6),
                             inactiveTrackColor = Color.White.copy(alpha = 0.2f)
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -269,7 +269,7 @@ fun CreateRoomScreen(
                             Icon(
                                 imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.LockOpen,
                                 contentDescription = null,
-                                tint = if (isPrivate) Color(0xFFFBBF24) else Color(0xFF5EEAD4),
+                                tint = if (isPrivate) Color(0xFFFBBF24) else Color(0xFFF3F4F6),
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(14.dp))
@@ -296,7 +296,7 @@ fun CreateRoomScreen(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = Color(0xFFFBBF24),
                                     uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFF5EEAD4)
+                                    uncheckedTrackColor = Color(0xFFF3F4F6)
                                 )
                             )
                         }
@@ -325,8 +325,8 @@ fun CreateRoomScreen(
                             .height(54.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5EEAD4),
-                            contentColor = Color(0xFF1A1344),
+                            containerColor = Color(0xFFF3F4F6),
+                            contentColor = Color(0xFF0B0B0D),
                             disabledContainerColor = Color(0xFF374151),
                             disabledContentColor = Color(0xFF6B7280)
                         )
@@ -335,7 +335,7 @@ fun CreateRoomScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp,
-                                color = Color(0xFF1A1344)
+                                color = Color(0xFF0B0B0D)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text("Creating...", fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -360,7 +360,7 @@ fun CreateRoomScreen(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        color = Color(0xFF5EEAD4),
+        color = Color(0xFFF3F4F6),
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.5.sp
@@ -389,12 +389,12 @@ private fun CategoryChipGrid(
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (isSelected) Color(0xFF5EEAD4).copy(alpha = 0.2f)
+                                if (isSelected) Color(0xFFF3F4F6).copy(alpha = 0.2f)
                                 else Color.White.copy(alpha = 0.07f)
                             )
                             .border(
                                 width = if (isSelected) 1.5.dp else 0.5.dp,
-                                color = if (isSelected) Color(0xFF5EEAD4) else Color.White.copy(alpha = 0.15f),
+                                color = if (isSelected) Color(0xFFF3F4F6) else Color.White.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .clickable(enabled = enabled) { onSelect(category) }
@@ -403,7 +403,7 @@ private fun CategoryChipGrid(
                     ) {
                         Text(
                             text = category.displayName,
-                            color = if (isSelected) Color(0xFF5EEAD4) else Color.White.copy(alpha = 0.75f),
+                            color = if (isSelected) Color(0xFFF3F4F6) else Color.White.copy(alpha = 0.75f),
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             maxLines = 2,
@@ -424,13 +424,13 @@ private fun CategoryChipGrid(
 private fun roomFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = Color.White,
     unfocusedTextColor = Color.White,
-    focusedBorderColor = Color(0xFF5EEAD4),
+    focusedBorderColor = Color(0xFFF3F4F6),
     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-    focusedLabelColor = Color(0xFF5EEAD4),
+    focusedLabelColor = Color(0xFFF3F4F6),
     unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-    cursorColor = Color(0xFF5EEAD4),
+    cursorColor = Color(0xFFF3F4F6),
     errorBorderColor = Color(0xFFEF4444),
     errorLabelColor = Color(0xFFEF4444),
-    focusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.3f),
-    unfocusedContainerColor = Color(0xFF2D1B69).copy(alpha = 0.2f)
+    focusedContainerColor = Color(0xFF141418).copy(alpha = 0.3f),
+    unfocusedContainerColor = Color(0xFF141418).copy(alpha = 0.2f)
 )

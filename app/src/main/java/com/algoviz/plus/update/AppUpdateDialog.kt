@@ -129,7 +129,7 @@ private fun UpdateAvailableDialog(
                     modifier = Modifier
                         .size(64.dp)
                         .background(
-                            Color(0xFF5EEAD4).copy(alpha = 0.2f),
+                            Color(0xFFF3F4F6).copy(alpha = 0.2f),
                             RoundedCornerShape(16.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -137,7 +137,7 @@ private fun UpdateAvailableDialog(
                     Icon(
                         imageVector = Icons.Default.SystemUpdate,
                         contentDescription = null,
-                        tint = Color(0xFF5EEAD4),
+                        tint = Color(0xFFF3F4F6),
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -153,7 +153,7 @@ private fun UpdateAvailableDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Version ${info.versionName} is ready",
-                    color = Color(0xFF5EEAD4),
+                    color = Color(0xFFF3F4F6),
                     fontSize = 14.sp
                 )
 
@@ -191,8 +191,8 @@ private fun UpdateAvailableDialog(
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344)
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF0B0B0D)
                     )
                 ) {
                     Icon(
@@ -240,7 +240,7 @@ private fun DownloadingDialog() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                CircularProgressIndicator(color = Color(0xFF5EEAD4))
+                CircularProgressIndicator(color = Color(0xFFF3F4F6))
                 Text(
                     text = "Downloading update…",
                     color = Color.White,
@@ -291,8 +291,8 @@ private fun DownloadFailedDialog(
                     onClick = onRetry,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344)
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF0B0B0D)
                     )
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)

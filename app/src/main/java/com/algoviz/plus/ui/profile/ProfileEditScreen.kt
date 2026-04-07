@@ -65,8 +65,8 @@ fun ProfileEditScreen(
         "Understand Algorithm Complexity"
     )
     val avatarColors = listOf(
-        listOf(Color(0xFF5EEAD4), Color(0xFF06B6D4)), // Cyan
-        listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)), // Purple
+        listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB)), // Cyan
+        listOf(Color(0xFFBFC3C9), Color(0xFF9EA4AD)), // Purple
         listOf(Color(0xFFEC4899), Color(0xFFDB2777)), // Pink
         listOf(Color(0xFF10B981), Color(0xFF059669)), // Green
         listOf(Color(0xFFF59E0B), Color(0xFFD97706)), // Orange
@@ -153,9 +153,9 @@ fun ProfileEditScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -213,8 +213,8 @@ fun ProfileEditScreen(
                         )
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344)
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF0B0B0D)
                     ),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.height(44.dp),
@@ -279,7 +279,7 @@ fun ProfileEditScreen(
                     TextButton(
                         onClick = { showAvatarDialog = true },
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color(0xFF5EEAD4)
+                            contentColor = Color(0xFFF3F4F6)
                         )
                     ) {
                         Text(
@@ -309,9 +309,9 @@ fun ProfileEditScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
+                            focusedBorderColor = Color(0xFFF3F4F6),
                             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
+                            cursorColor = Color(0xFFF3F4F6),
                             focusedContainerColor = Color.White.copy(alpha = 0.05f),
                             unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
                         ),
@@ -339,9 +339,9 @@ fun ProfileEditScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
+                            focusedBorderColor = Color(0xFFF3F4F6),
                             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
+                            cursorColor = Color(0xFFF3F4F6),
                             focusedContainerColor = Color.White.copy(alpha = 0.05f),
                             unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
                         ),
@@ -370,9 +370,9 @@ fun ProfileEditScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
+                            focusedBorderColor = Color(0xFFF3F4F6),
                             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
+                            cursorColor = Color(0xFFF3F4F6),
                             focusedContainerColor = Color.White.copy(alpha = 0.05f),
                             unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
                         ),
@@ -425,7 +425,7 @@ fun ProfileEditScreen(
                             expanded = showStudyGoalMenu,
                             onDismissRequest = { showStudyGoalMenu = false },
                             modifier = Modifier
-                                .background(Color(0xFF2D1B69))
+                                .background(Color(0xFF141418))
                                 .fillMaxWidth(0.85f)
                         ) {
                             studyGoals.forEach { goal ->
@@ -434,7 +434,7 @@ fun ProfileEditScreen(
                                         Text(
                                             goal,
                                             color = if (goal == studyGoal) {
-                                                Color(0xFF5EEAD4)
+                                                Color(0xFFF3F4F6)
                                             } else {
                                                 Color.White
                                             },
@@ -507,7 +507,7 @@ fun ProfileEditScreen(
                             expanded = showSkillMenu,
                             onDismissRequest = { showSkillMenu = false },
                             modifier = Modifier
-                                .background(Color(0xFF2D1B69))
+                                .background(Color(0xFF141418))
                                 .fillMaxWidth(0.85f)
                         ) {
                             skillLevels.forEach { level ->
@@ -516,7 +516,7 @@ fun ProfileEditScreen(
                                         Text(
                                             level,
                                             color = if (level == skillLevel) {
-                                                Color(0xFF5EEAD4)
+                                                Color(0xFFF3F4F6)
                                             } else {
                                                 Color.White
                                             },
@@ -552,7 +552,7 @@ fun ProfileEditScreen(
         if (showAvatarDialog) {
             AlertDialog(
                 onDismissRequest = { showAvatarDialog = false },
-                containerColor = Color(0xFF1A1344),
+                containerColor = Color(0xFF0B0B0D),
                 title = {
                     Text(
                         text = "Change Profile Photo",
@@ -597,13 +597,13 @@ fun ProfileEditScreen(
                                     modifier = Modifier
                                         .size(50.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFF5EEAD4).copy(alpha = 0.2f)),
+                                        .background(Color(0xFFF3F4F6).copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.PhotoLibrary,
                                         contentDescription = "Gallery",
-                                        tint = Color(0xFF5EEAD4),
+                                        tint = Color(0xFFF3F4F6),
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -645,13 +645,13 @@ fun ProfileEditScreen(
                                     modifier = Modifier
                                         .size(50.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f)),
+                                        .background(Color(0xFFBFC3C9).copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.CameraAlt,
                                         contentDescription = "Camera",
-                                        tint = Color(0xFF8B5CF6),
+                                        tint = Color(0xFFBFC3C9),
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -689,7 +689,7 @@ fun ProfileEditScreen(
         if (showPermissionDeniedDialog) {
             AlertDialog(
                 onDismissRequest = { showPermissionDeniedDialog = false },
-                containerColor = Color(0xFF1A1344),
+                containerColor = Color(0xFF0B0B0D),
                 title = {
                     Text(
                         text = "Photo Permission Needed",
@@ -722,7 +722,7 @@ fun ProfileEditScreen(
         if (errorMessage != null) {
             AlertDialog(
                 onDismissRequest = { profileViewModel.clearError() },
-                containerColor = Color(0xFF1A1344),
+                containerColor = Color(0xFF0B0B0D),
                 title = {
                     Text(
                         text = "Profile Update Failed",

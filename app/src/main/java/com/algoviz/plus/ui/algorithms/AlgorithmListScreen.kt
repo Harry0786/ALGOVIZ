@@ -40,9 +40,9 @@ fun AlgorithmListScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
+                        Color(0xFF0B0B0D),
+                        Color(0xFF141418),
+                        Color(0xFF1A1A1F)
                     )
                 )
             )
@@ -96,9 +96,9 @@ fun AlgorithmListScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF5EEAD4),
+                    focusedBorderColor = Color(0xFFF3F4F6),
                     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    cursorColor = Color(0xFF5EEAD4)
+                    cursorColor = Color(0xFFF3F4F6)
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
@@ -180,8 +180,8 @@ private fun CategoryChip(
         colors = FilterChipDefaults.filterChipColors(
             containerColor = Color.White.copy(alpha = 0.1f),
             labelColor = Color.White.copy(alpha = 0.7f),
-            selectedContainerColor = Color(0xFF5EEAD4),
-            selectedLabelColor = Color(0xFF1A1344)
+            selectedContainerColor = Color(0xFFF3F4F6),
+            selectedLabelColor = Color(0xFF0B0B0D)
         )
     )
 }
@@ -265,7 +265,7 @@ private fun ComplexityInfo(label: String, value: String) {
             text = value,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF5EEAD4)
+            color = Color(0xFFF3F4F6)
         )
     }
 }

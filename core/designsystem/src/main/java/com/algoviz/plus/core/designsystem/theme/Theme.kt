@@ -86,7 +86,7 @@ fun AlgoVizTheme(
         SideEffect {
             val window = (view.context as Activity).window
             // Use dark purple status bar color across the app
-            window.statusBarColor = Color(0xFF1A1344).toArgb()
+            window.statusBarColor = Color(0xFF0B0B0D).toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }

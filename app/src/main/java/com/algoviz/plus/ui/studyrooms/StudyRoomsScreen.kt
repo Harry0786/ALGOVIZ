@@ -44,9 +44,9 @@ fun StudyRoomsScreen(
         modifier = Modifier.background(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xFF1A1344),
-                    Color(0xFF2D1B69),
-                    Color(0xFF3D2080)
+                    Color(0xFF0B0B0D),
+                    Color(0xFF141418),
+                    Color(0xFF1A1A1F)
                 )
             )
         ),
@@ -59,9 +59,9 @@ fun StudyRoomsScreen(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF1A1344),
-                            Color(0xFF2D1B69),
-                            Color(0xFF3D2080)
+                            Color(0xFF0B0B0D),
+                            Color(0xFF141418),
+                            Color(0xFF1A1A1F)
                         )
                     )
                 )
@@ -99,8 +99,8 @@ fun StudyRoomsScreen(
                     Button(
                         onClick = { onCreateRoomClick() },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5EEAD4),
-                            contentColor = Color(0xFF1A1344)
+                            containerColor = Color(0xFFF3F4F6),
+                            contentColor = Color(0xFF0B0B0D)
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -138,9 +138,9 @@ fun StudyRoomsScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
+                            focusedBorderColor = Color(0xFFF3F4F6),
                             unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4)
+                            cursorColor = Color(0xFFF3F4F6)
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -154,7 +154,7 @@ fun StudyRoomsScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(color = Color(0xFF5EEAD4))
+                                CircularProgressIndicator(color = Color(0xFFF3F4F6))
                             }
                         }
                         is StudyRoomsUiState.Success -> {
@@ -197,8 +197,8 @@ fun StudyRoomsScreen(
                                     Button(
                                         onClick = { viewModel.retryLoadRooms() },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF5EEAD4),
-                                            contentColor = Color(0xFF1A1344)
+                                            containerColor = Color(0xFFF3F4F6),
+                                            contentColor = Color(0xFF0B0B0D)
                                         ),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -240,7 +240,7 @@ fun StudyRoomsList(
                 Icon(
                     Icons.Default.Group,
                     contentDescription = null,
-                    tint = Color(0xFF5EEAD4),
+                    tint = Color(0xFFF3F4F6),
                     modifier = Modifier.size(64.dp)
                 )
                 Text(
@@ -368,7 +368,7 @@ fun RoomCard(
                         Text(
                             text = room.category.displayName,
                             fontSize = 13.sp,
-                            color = Color(0xFF5EEAD4)
+                            color = Color(0xFFF3F4F6)
                         )
                     }
 
@@ -379,8 +379,8 @@ fun RoomCard(
                             onClick = onActionClick,
                             enabled = !isLoading,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isJoined) Color(0xFFEF4444) else Color(0xFF5EEAD4),
-                                contentColor = if (isJoined) Color.White else Color(0xFF1A1344)
+                                containerColor = if (isJoined) Color(0xFFEF4444) else Color(0xFFF3F4F6),
+                                contentColor = if (isJoined) Color.White else Color(0xFF0B0B0D)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
