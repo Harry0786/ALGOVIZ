@@ -1,5 +1,7 @@
 package com.algoviz.plus.features.auth.presentation.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +25,7 @@ sealed class AuthRoute(val route: String) {
 }
 
 fun NavGraphBuilder.authNavGraph(
+    @DrawableRes backgroundRes: Int,
     @DrawableRes logoRes: Int,
     navController: NavHostController,
     onAuthSuccess: () -> Unit
@@ -33,6 +36,7 @@ fun NavGraphBuilder.authNavGraph(
     ) {
         composable(AuthRoute.Login.route) {
             LoginScreen(
+                backgroundRes = backgroundRes,
                 logoRes = logoRes,
                 onNavigateToRegister = {
                     navController.navigate(AuthRoute.Register.route) {
@@ -46,7 +50,7 @@ fun NavGraphBuilder.authNavGraph(
         
         composable(AuthRoute.Register.route) {
             RegisterScreen(
-                logoRes = logoRes,
+                backgroundRes = backgroundRes,
                 onNavigateToLogin = {
                     navController.navigate(AuthRoute.Login.route) {
                         popUpTo(AuthRoute.Register.route) {
@@ -61,6 +65,7 @@ fun NavGraphBuilder.authNavGraph(
 
 @Composable
 fun AuthNavigation(
+    @DrawableRes backgroundRes: Int,
     @DrawableRes logoRes: Int,
     navController: NavHostController,
     onAuthSuccess: () -> Unit,
@@ -81,9 +86,16 @@ fun AuthNavigation(
     
     NavHost(
         navController = navController,
-        startDestination = AuthRoute.AuthGraph.route
+        startDestination = AuthRoute.AuthGraph.route,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
-        authNavGraph(            logoRes = logoRes,            navController = navController,
+        authNavGraph(
+            backgroundRes = backgroundRes,
+            logoRes = logoRes,
+            navController = navController,
             onAuthSuccess = onAuthSuccess
         )
     }

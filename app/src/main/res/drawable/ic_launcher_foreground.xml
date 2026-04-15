@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 54 25 L 40 54 L 48 54 L 48 83 L 68 54 L 60 54 Z"/>
-</vector>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="16dp"
+    android:insetTop="24dp"
+    android:insetRight="16dp"
+    android:insetBottom="8dp">
+    <bitmap
+        android:antialias="true"
+        android:filter="true"
+        android:gravity="center"
+        android:src="@drawable/app_icon_foreground" />
+</inset>

@@ -3,6 +3,7 @@ package com.algoviz.plus.features.auth.presentation.screens
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,20 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,8 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import android.widget.Toast
@@ -50,9 +44,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.algoviz.plus.features.auth.presentation.components.AppLogo
 import com.algoviz.plus.features.auth.presentation.components.EmailTextField
 import com.algoviz.plus.features.auth.presentation.components.GoogleSignInButton
 import com.algoviz.plus.features.auth.presentation.components.PasswordTextField
@@ -67,8 +61,10 @@ import timber.log.Timber
 import androidx.annotation.DrawableRes
 import kotlinx.coroutines.launch
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun LoginScreen(
+    @DrawableRes backgroundRes: Int,
     @DrawableRes logoRes: Int,
     onNavigateToRegister: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
@@ -140,164 +136,218 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            )
-            .windowInsetsPadding(WindowInsets.statusBars)
     ) {
+        Image(
+            painter = painterResource(id = backgroundRes),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+        )
+
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0)
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 32.dp),
-                verticalArrangement = Arrangement.Center,
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(60.dp))
-                
-                // Logo
-                AppLogo(
-                    logoRes = logoRes,
-                    size = 80.dp
-                )
-                
+                Spacer(modifier = Modifier.height(85.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = com.algoviz.plus.features.auth.R.drawable.thunder),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .height(30.dp)
+                            .padding(end = 8.dp),
+                        contentScale = ContentScale.Fit
+                    )
+
+                    Text(
+                        text = "AlgoViz+",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.4).sp
+                        ),
+                        color = Color.White
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(40.dp))
-                
+
                 Text(
-                    text = "Welcome Back",
-                    style = MaterialTheme.typography.displaySmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    text = "Sign in to continue your algorithmic journey.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.62f),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 26.sp,
+                    modifier = Modifier.fillMaxWidth(0.96f)
+                )
+                Spacer(modifier = Modifier.height(34.dp))
+
+                Text(
+                    text = "Email Address",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Sign in to continue your learning journey",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center
+                EmailTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = null,
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    imeAction = ImeAction.Next
                 )
 
-            Spacer(modifier = Modifier.height(56.dp))
+                Spacer(modifier = Modifier.height(22.dp))
 
-            EmailTextField(
-                value = email,
-                onValueChange = { email = it },
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                ),
-                imeAction = ImeAction.Next
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            PasswordTextField(
-                value = password,
-                onValueChange = { password = it },
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        if (email.isNotBlank() && password.isNotBlank()) {
-                            viewModel.login(email, password)
-                        }
-                    }
-                )
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                TextButton(onClick = { showForgotPasswordDialog = true }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Forgot Password?",
-                        color = Color(0xFF5EEAD4),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            PrimaryButton(
-                text = "Sign In",
-                onClick = { viewModel.login(email, password) },
-                enabled = email.isNotBlank() && password.isNotBlank(),
-                isLoading = uiState is AuthUiState.Loading
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "OR",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.5f),
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            GoogleSignInButton(
-                onClick = {
-                    val webClientId = resolveWebClientId(context)
-                    if (webClientId.isBlank()) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Google Sign-In is not configured for this build.")
-                        }
-                        return@GoogleSignInButton
-                    }
-
-                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestIdToken(webClientId)
-                        .requestEmail()
-                        .build()
-                    val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                },
-                enabled = uiState !is AuthUiState.Loading
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Don't have an account?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-                TextButton(onClick = onNavigateToRegister) {
-                    Text(
-                        text = "Sign Up",
-                        color = Color(0xFF5EEAD4),
+                        text = "Password",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.92f),
                         fontWeight = FontWeight.SemiBold
                     )
+
+                    TextButton(onClick = { showForgotPasswordDialog = true }) {
+                        Text(
+                            text = "Forgot Password?",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
-            }
-            
-            Spacer(modifier = Modifier.height(60.dp))
+
+                PasswordTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = null,
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            if (email.isNotBlank() && password.isNotBlank()) {
+                                viewModel.login(email, password)
+                            }
+                        }
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                PrimaryButton(
+                    text = "Sign In",
+                    onClick = { viewModel.login(email, password) },
+                    enabled = email.isNotBlank() && password.isNotBlank(),
+                    isLoading = uiState is AuthUiState.Loading
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.18f))
+                    )
+
+                    Text(
+                        text = "OR",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.46f),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 18.dp)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.18f))
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(modifier = Modifier.height(30.dp))
+
+                GoogleSignInButton(
+                    onClick = {
+                        val webClientId = resolveWebClientId(context)
+                        if (webClientId.isBlank()) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Google Sign-In is not configured for this build.")
+                            }
+                            return@GoogleSignInButton
+                        }
+
+                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                            .requestIdToken(webClientId)
+                            .requestEmail()
+                            .build()
+                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    },
+                    enabled = uiState !is AuthUiState.Loading
+                )
+
+                Spacer(modifier = Modifier.height(34.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Don't have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.56f)
+                    )
+                    TextButton(onClick = onNavigateToRegister) {
+                        Text(
+                            text = "Create Account",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
-    
+
     if (showForgotPasswordDialog) {
         ForgotPasswordDialog(
             onDismiss = { showForgotPasswordDialog = false },
@@ -333,7 +383,7 @@ private fun ForgotPasswordDialog(
 ) {
     var resetEmail by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -350,18 +400,18 @@ private fun ForgotPasswordDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.7f)
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 EmailTextField(
                     value = resetEmail,
-                    onValueChange = { 
+                    onValueChange = {
                         resetEmail = it
                         errorMessage = null
                     },
                     imeAction = ImeAction.Done
                 )
-                
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

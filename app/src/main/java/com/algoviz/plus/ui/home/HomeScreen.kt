@@ -776,7 +776,7 @@ private fun AppLogo(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val drawable = ContextCompat.getDrawable(context, com.algoviz.plus.R.mipmap.ic_launcher)
+    val drawable = ContextCompat.getDrawable(context, com.algoviz.plus.R.drawable.app_logo)
     
     val painter = remember(drawable) {
         drawable?.let {

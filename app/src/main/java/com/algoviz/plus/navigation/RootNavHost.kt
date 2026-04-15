@@ -1,16 +1,14 @@
 package com.algoviz.plus.navigation
 
-import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,17 +16,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -43,6 +34,9 @@ import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
 import com.algoviz.plus.ui.placeholder.PlaceholderScreen
 import com.algoviz.plus.update.AppUpdateDialog
 
+private const val MIN_SPLASH_DURATION_MS = 1200L
+private const val SPLASH_FRAME_STEP_MS = 320L
+
 @Composable
 fun RootNavHost(
     authViewModel: AuthViewModel = hiltViewModel()
@@ -51,17 +45,13 @@ fun RootNavHost(
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     var splashFinished by remember { mutableStateOf(false) }
 
-    // Minimum 3-second splash screen display
+    // Keep a short splash to avoid feeling delayed at startup.
     LaunchedEffect(Unit) {
-        delay(3000)
+        delay(MIN_SPLASH_DURATION_MS)
         splashFinished = true
     }
 
-    // Show splash screen while checking auth state or during minimum display time
-    if (!splashFinished || authState is AuthUiState.Idle || authState is AuthUiState.Loading) {
-        SplashScreen()
-        return
-    }
+    val showSplash = !splashFinished || authState is AuthUiState.Idle || authState is AuthUiState.Loading
 
     // Determine start destination based on auth state
     val startDestination = when (authState) {
@@ -99,82 +89,103 @@ fun RootNavHost(
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination
-    ) {
-        authNavGraph(
-            logoRes = com.algoviz.plus.R.mipmap.ic_launcher,
-            navController = navController,
-            onAuthSuccess = {
-                // Navigation handled by LaunchedEffect above
-            }
-        )
+    Crossfade(
+        targetState = showSplash,
+        animationSpec = tween(
+            durationMillis = 240,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SplashToAppCrossfade"
+    ) { splashVisible ->
+        if (splashVisible) {
+            SplashScreen()
+        } else {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
+                authNavGraph(
+                    backgroundRes = com.algoviz.plus.R.drawable.auth_bg1,
+                    logoRes = com.algoviz.plus.R.drawable.auth_logo_circle,
+                    navController = navController,
+                    onAuthSuccess = {
+                        // Navigation handled by LaunchedEffect above
+                    }
+                )
 
-        composable("main") {
-            PlaceholderScreen(
-                onSignOutClick = {
-                    authViewModel.logout()
-                },
-                authViewModel = authViewModel
-            )
+                composable("main") {
+                    PlaceholderScreen(
+                        onSignOutClick = {
+                            authViewModel.logout()
+                        },
+                        authViewModel = authViewModel
+                    )
+                }
+            }
+
+            // Overlay: show update dialog if a newer version is available
+            AppUpdateDialog()
         }
     }
-
-        // Overlay: show update dialog if a newer version is available
-        AppUpdateDialog()
-    }
+}
 
 @Composable
 private fun SplashScreen() {
-    val context = LocalContext.current
-    val painter = remember {
-        val drawable = ContextCompat.getDrawable(context, com.algoviz.plus.R.mipmap.ic_launcher)
-        val bitmap = (drawable as? BitmapDrawable)?.bitmap
-            ?: android.graphics.Bitmap.createBitmap(
-                drawable!!.intrinsicWidth,
-                drawable.intrinsicHeight,
-                android.graphics.Bitmap.Config.ARGB_8888
-            ).also { bmp ->
-                val canvas = android.graphics.Canvas(bmp)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-            }
-        BitmapPainter(bitmap.asImageBitmap())
+    var showFrame2 by remember { mutableStateOf(false) }
+    var showFinalFrame by remember { mutableStateOf(false) }
+
+    val frame2Alpha by animateFloatAsState(
+        targetValue = if (showFrame2) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SplashFrame2Alpha"
+    )
+    val finalFrameAlpha by animateFloatAsState(
+        targetValue = if (showFinalFrame) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SplashFinalFrameAlpha"
+    )
+
+    // Layered fades prevent hard image swaps and keep the sequence smooth.
+    LaunchedEffect(Unit) {
+        delay(SPLASH_FRAME_STEP_MS)
+        showFrame2 = true
+        delay(SPLASH_FRAME_STEP_MS)
+        showFinalFrame = true
     }
-    
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                androidx.compose.ui.graphics.Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Image(
-                painter = painter,
-                contentDescription = "AlgoViz Logo",
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(RoundedCornerShape(30.dp))
-            )
-            Text(
-                text = "AlgoViz+",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.sp1),
+            contentDescription = "Splash Screen Frame 1",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.sp2),
+            contentDescription = "Splash Screen Frame 2",
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(alpha = frame2Alpha),
+            contentScale = ContentScale.FillBounds
+        )
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.splash_screen),
+            contentDescription = "Splash Screen",
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(alpha = finalFrameAlpha),
+            contentScale = ContentScale.FillBounds
+        )
     }
 }
 
