@@ -12,10 +12,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Run-Git {
-    param([string]$Args)
-    $output = & git $Args 2>&1
+    param([string]$GitArgs)
+    $output = & git $GitArgs 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "git $Args failed: $output"
+        throw "git $GitArgs failed: $output"
     }
     return $output
 }
