@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -18,8 +18,8 @@ android {
         applicationId = "com.algoviz.plus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 20
-        versionName = "1.1.29"
+        versionCode = 21
+        versionName = "1.1.31"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -217,3 +217,4 @@ dependencies {
 hilt {
     enableAggregatingTask = true
 }
+
