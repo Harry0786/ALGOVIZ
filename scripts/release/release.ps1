@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 
 function Run-Git {
     param([string]$GitArgs)
-    $output = & git $GitArgs 2>&1
+    $output = & cmd /c "git $GitArgs" 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "git $GitArgs failed: $output"
     }
