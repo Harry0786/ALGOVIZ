@@ -98,7 +98,6 @@ fun PlaceholderScreen(
         ) {
             composable("home") {
                 HomeScreen(
-                    onLogoutClick = { authViewModel.logout() },
                     onProfileClick = { navController.navigateSafely("profile_edit") },
                     onVisualize = { navController.navigateSafely("algorithms") },
                     onLearn = { navController.navigateSafely("learn") },
@@ -257,3 +256,4 @@ private fun NavHostController.navigateSafely(route: String) {
         }
     }
 }
+

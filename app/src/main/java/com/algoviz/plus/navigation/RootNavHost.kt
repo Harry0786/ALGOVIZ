@@ -24,24 +24,47 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.algoviz.plus.features.auth.presentation.navigation.AuthRoute
 import com.algoviz.plus.features.auth.presentation.navigation.authNavGraph
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
-import com.algoviz.plus.ui.placeholder.PlaceholderScreen
+import com.algoviz.plus.ui.algorithms.AlgorithmVisualizationScreen
+import com.algoviz.plus.ui.algorithms.AlgorithmListScreen
+import com.algoviz.plus.ui.home.HomeScreen
+import com.algoviz.plus.ui.learn.LearnScreen
+import com.algoviz.plus.ui.profile.ProfileEditScreen
+import com.algoviz.plus.ui.profile.ProfileScreen
+import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
+import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
+import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
 import com.algoviz.plus.update.AppUpdateDialog
 
 private const val MIN_SPLASH_DURATION_MS = 1200L
 private const val SPLASH_FRAME_STEP_MS = 320L
+private const val ROUTE_MAIN = "main"
+private const val ROUTE_PROFILE = "profile"
+private const val ROUTE_PROFILE_EDIT = "profile/edit"
+private const val ROUTE_LEARN = "learn"
+private const val ROUTE_ALGORITHMS = "algorithms"
+private const val ROUTE_STUDY_ROOMS = "study_rooms"
+private const val ROUTE_CREATE_ROOM = "create_room"
+private const val ROUTE_CHAT = "chat"
+private const val ROUTE_VISUALIZATION = "visualization"
+private const val ROUTE_CHAT_PATTERN = "$ROUTE_CHAT/{roomId}"
+private const val ROUTE_VISUALIZATION_PATTERN = "$ROUTE_VISUALIZATION/{algorithmId}"
+private const val DEFAULT_ALGORITHM_ID = "bubble_sort"
 
 @Composable
 fun RootNavHost(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     var splashFinished by remember { mutableStateOf(false) }
 
@@ -55,17 +78,29 @@ fun RootNavHost(
 
     // Determine start destination based on auth state
     val startDestination = when (authState) {
-        is AuthUiState.Authenticated -> "main"
+        is AuthUiState.Authenticated -> ROUTE_MAIN
         else -> AuthRoute.AuthGraph.route
     }
 
     // Handle navigation based on auth state changes
-    LaunchedEffect(authState) {
+    LaunchedEffect(authState, showSplash, currentRoute) {
+        if (showSplash || currentRoute == null) return@LaunchedEffect
+
         when (authState) {
             is AuthUiState.Authenticated -> {
-                if (navController.currentDestination?.route != "main") {
-                    navController.navigate("main") {
-                        popUpTo(navController.graph.startDestinationId) {
+                if (currentRoute !in setOf(
+                        ROUTE_MAIN,
+                        ROUTE_PROFILE,
+                        ROUTE_PROFILE_EDIT,
+                        ROUTE_LEARN,
+                        ROUTE_ALGORITHMS,
+                        ROUTE_STUDY_ROOMS,
+                        ROUTE_CREATE_ROOM,
+                        ROUTE_CHAT_PATTERN,
+                        ROUTE_VISUALIZATION_PATTERN
+                    )) {
+                    navController.navigate(ROUTE_MAIN) {
+                        popUpTo(AuthRoute.AuthGraph.route) {
                             inclusive = true
                         }
                         launchSingleTop = true
@@ -73,10 +108,19 @@ fun RootNavHost(
                 }
             }
             is AuthUiState.Unauthenticated -> {
-                val currentRoute = navController.currentDestination?.route
-                if (currentRoute == "main") {
+                if (currentRoute in setOf(
+                        ROUTE_MAIN,
+                        ROUTE_PROFILE,
+                        ROUTE_PROFILE_EDIT,
+                        ROUTE_LEARN,
+                        ROUTE_ALGORITHMS,
+                        ROUTE_STUDY_ROOMS,
+                        ROUTE_CREATE_ROOM,
+                        ROUTE_CHAT_PATTERN,
+                        ROUTE_VISUALIZATION_PATTERN
+                    )) {
                     navController.navigate(AuthRoute.AuthGraph.route) {
-                        popUpTo(navController.graph.startDestinationId) {
+                        popUpTo(ROUTE_MAIN) {
                             inclusive = true
                         }
                         launchSingleTop = true
@@ -117,12 +161,88 @@ fun RootNavHost(
                     }
                 )
 
-                composable("main") {
-                    PlaceholderScreen(
-                        onSignOutClick = {
-                            authViewModel.logout()
+                composable(ROUTE_MAIN) {
+                    HomeScreen(
+                        onVisualize = { navController.navigate(ROUTE_ALGORITHMS) },
+                        onLearn = { navController.navigate(ROUTE_LEARN) },
+                        onStudyRooms = { navController.navigate(ROUTE_STUDY_ROOMS) },
+                        onProfileClick = { navController.navigate(ROUTE_PROFILE) }
+                    )
+                }
+
+                composable(ROUTE_ALGORITHMS) {
+                    AlgorithmListScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onAlgorithmClick = { algorithmId ->
+                            navController.navigate("$ROUTE_VISUALIZATION/$algorithmId")
+                        }
+                    )
+                }
+
+                composable(ROUTE_LEARN) {
+                    LearnScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onVisualizeAlgorithm = { algorithmId ->
+                            navController.navigate("$ROUTE_VISUALIZATION/$algorithmId")
+                        }
+                    )
+                }
+
+                composable(ROUTE_STUDY_ROOMS) {
+                    StudyRoomsScreen(
+                        onRoomClick = { roomId ->
+                            navController.navigate("$ROUTE_CHAT/$roomId")
                         },
+                        onCreateRoomClick = { navController.navigate(ROUTE_CREATE_ROOM) },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(ROUTE_CREATE_ROOM) {
+                    CreateRoomScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onRoomCreated = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = ROUTE_CHAT_PATTERN,
+                    arguments = listOf(
+                        navArgument("roomId") {
+                            type = NavType.StringType
+                        }
+                    )
+                ) {
+                    ChatRoomScreen(
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = ROUTE_VISUALIZATION_PATTERN,
+                    arguments = listOf(
+                        navArgument("algorithmId") {
+                            type = NavType.StringType
+                            defaultValue = DEFAULT_ALGORITHM_ID
+                        }
+                    )
+                ) {
+                    AlgorithmVisualizationScreen(
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(ROUTE_PROFILE) {
+                    ProfileScreen(
+                        onEditProfileClick = { navController.navigate(ROUTE_PROFILE_EDIT) },
+                        onLogoutClick = { authViewModel.logout() },
                         authViewModel = authViewModel
+                    )
+                }
+
+                composable(ROUTE_PROFILE_EDIT) {
+                    ProfileEditScreen(
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
             }

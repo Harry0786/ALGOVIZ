@@ -6,9 +6,14 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -24,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -147,114 +153,66 @@ fun ProfileEditScreen(
         }
     }
     
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            )
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.auth_bg1),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
         ) {
-            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    
-                    Text(
-                        text = "Edit Profile",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                IconButton(onClick = onBackClick, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-                
-                Button(
-                    onClick = {
-                        profileViewModel.saveProfileChanges(
-                            name = name,
-                            email = email,
-                            bio = bio,
-                            studyGoal = studyGoal,
-                            skillLevel = skillLevel,
-                            avatarColorIndex = avatarColor,
-                            onSaved = onBackClick
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF5EEAD4),
-                        contentColor = Color(0xFF1A1344)
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.height(44.dp),
-                    enabled = !isSaving
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isSaving) "Saving..." else "Save",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
+                Text(
+                    text = "Edit Profile",
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
-            
-            // Content
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Profile Picture Section
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .size(176.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFBFC1C6)),
+                    contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(90.dp)
-                            .clip(RoundedCornerShape(45.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = avatarColors[avatarColor]
-                                )
-                            ),
+                            .size(168.dp)
+                            .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (avatarUri != null) {
@@ -262,290 +220,288 @@ fun ProfileEditScreen(
                                 model = avatarUri,
                                 contentDescription = "Profile Picture",
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(90.dp)
-                                    .clip(RoundedCornerShape(45.dp))
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Text(
-                                text = name.firstOrNull()?.uppercase() ?: "U",
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                            Image(
+                                painter = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.user),
+                                contentDescription = "Profile Picture",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
-                    
-                    TextButton(
-                        onClick = { showAvatarDialog = true },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color(0xFF5EEAD4)
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = (-2).dp, y = (-10).dp)
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1A1D24)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CameraAlt,
+                            contentDescription = "Change Photo",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
                         )
+                    }
+                }
+
+                TextButton(
+                    onClick = { showAvatarDialog = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.92f))
+                ) {
+                    Text(text = "Change Photo", fontSize = 15.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(text = "Name", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color(0xFFE7E8EC),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 19.dp),
+                    decorationBox = { inner ->
+                        if (name.isBlank()) {
+                            Text("Enter your name", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(text = "Email", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color(0xFFE7E8EC),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 19.dp),
+                    decorationBox = { inner ->
+                        if (email.isBlank()) {
+                            Text("Enter your email", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(text = "Bio", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicTextField(
+                    value = bio,
+                    onValueChange = { bio = it },
+                    singleLine = false,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color(0xFFE7E8EC),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 28.sp
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(170.dp)
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    decorationBox = { inner ->
+                        if (bio.isBlank()) {
+                            Text("Tell us about your learning focus", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(text = "Study Goal", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box {
+                Surface(
+                    onClick = { showStudyGoalMenu = true },
+                    color = Color(0xFF35373D).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 22.dp, vertical = 18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Change Photo",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
+                            text = studyGoal,
+                            color = Color(0xFFE7E8EC),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Row {
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
+                        }
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showStudyGoalMenu,
+                    onDismissRequest = { showStudyGoalMenu = false },
+                    modifier = Modifier
+                        .background(Color(0xFF1A1C23))
+                        .fillMaxWidth(0.92f)
+                ) {
+                    studyGoals.forEach { goal ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    goal,
+                                    color = if (goal == studyGoal) Color.White else Color.White.copy(alpha = 0.78f),
+                                    fontWeight = if (goal == studyGoal) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            onClick = {
+                                studyGoal = goal
+                                showStudyGoalMenu = false
+                            }
                         )
                     }
                 }
-                
-                // Name Field
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Name",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        placeholder = { 
-                            Text("Enter your name", color = Color.White.copy(alpha = 0.4f)) 
-                        },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                
-                // Email Field
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Email",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        placeholder = { 
-                            Text("Enter your email", color = Color.White.copy(alpha = 0.4f)) 
-                        },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // Bio Field
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Bio",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-
-                    OutlinedTextField(
-                        value = bio,
-                        onValueChange = { bio = it },
-                        placeholder = {
-                            Text("Tell us about your learning focus", color = Color.White.copy(alpha = 0.4f))
-                        },
-                        minLines = 2,
-                        maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF5EEAD4),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                            cursorColor = Color(0xFF5EEAD4),
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                
-                // Study Goal Dropdown
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Study Goal",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    
-                    Box {
-                        Surface(
-                            onClick = { showStudyGoalMenu = true },
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                Color.White.copy(alpha = 0.3f)
-                            ),
-                            color = Color.White.copy(alpha = 0.03f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = studyGoal,
-                                    color = Color.White,
-                                    fontSize = 16.sp
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.ArrowDropDown,
-                                    contentDescription = "Dropdown",
-                                    tint = Color.White.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                        
-                        DropdownMenu(
-                            expanded = showStudyGoalMenu,
-                            onDismissRequest = { showStudyGoalMenu = false },
-                            modifier = Modifier
-                                .background(Color(0xFF2D1B69))
-                                .fillMaxWidth(0.85f)
-                        ) {
-                            studyGoals.forEach { goal ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            goal,
-                                            color = if (goal == studyGoal) {
-                                                Color(0xFF5EEAD4)
-                                            } else {
-                                                Color.White
-                                            },
-                                            fontWeight = if (goal == studyGoal) {
-                                                FontWeight.Bold
-                                            } else {
-                                                FontWeight.Normal
-                                            },
-                                            fontSize = 14.sp
-                                        )
-                                    },
-                                    onClick = {
-                                        studyGoal = goal
-                                        showStudyGoalMenu = false
-                                    },
-                                    modifier = Modifier.background(
-                                        if (goal == studyGoal) {
-                                            Color.White.copy(alpha = 0.1f)
-                                        } else {
-                                            Color.Transparent
-                                        }
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-                
-                // Skill Level Dropdown
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Skill Level",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    
-                    Box {
-                        Surface(
-                            onClick = { showSkillMenu = true },
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                Color.White.copy(alpha = 0.3f)
-                            ),
-                            color = Color.White.copy(alpha = 0.03f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = skillLevel,
-                                    color = Color.White,
-                                    fontSize = 16.sp
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.ArrowDropDown,
-                                    contentDescription = "Dropdown",
-                                    tint = Color.White.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                        
-                        DropdownMenu(
-                            expanded = showSkillMenu,
-                            onDismissRequest = { showSkillMenu = false },
-                            modifier = Modifier
-                                .background(Color(0xFF2D1B69))
-                                .fillMaxWidth(0.85f)
-                        ) {
-                            skillLevels.forEach { level ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            level,
-                                            color = if (level == skillLevel) {
-                                                Color(0xFF5EEAD4)
-                                            } else {
-                                                Color.White
-                                            },
-                                            fontWeight = if (level == skillLevel) {
-                                                FontWeight.Bold
-                                            } else {
-                                                FontWeight.Normal
-                                            }
-                                        )
-                                    },
-                                    onClick = {
-                                        skillLevel = level
-                                        showSkillMenu = false
-                                    },
-                                    modifier = Modifier.background(
-                                        if (level == skillLevel) {
-                                            Color.White.copy(alpha = 0.1f)
-                                        } else {
-                                            Color.Transparent
-                                        }
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(text = "Skill Level", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box {
+                Surface(
+                    onClick = { showSkillMenu = true },
+                    color = Color(0xFF35373D).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 22.dp, vertical = 18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = skillLevel,
+                            color = Color(0xFFE7E8EC),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Row {
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
+                        }
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showSkillMenu,
+                    onDismissRequest = { showSkillMenu = false },
+                    modifier = Modifier
+                        .background(Color(0xFF1A1C23))
+                        .fillMaxWidth(0.92f)
+                ) {
+                    skillLevels.forEach { level ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    level,
+                                    color = if (level == skillLevel) Color.White else Color.White.copy(alpha = 0.78f),
+                                    fontWeight = if (level == skillLevel) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            onClick = {
+                                skillLevel = level
+                                showSkillMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(42.dp))
+
+            Surface(
+                onClick = {
+                    profileViewModel.saveProfileChanges(
+                        name = name,
+                        email = email,
+                        bio = bio,
+                        studyGoal = studyGoal,
+                        skillLevel = skillLevel,
+                        avatarColorIndex = avatarColor,
+                        onSaved = onBackClick
+                    )
+                },
+                enabled = !isSaving,
+                shape = RoundedCornerShape(26.dp),
+                color = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color(0xFF42444A), Color(0xFF5A5D64))
+                        )
+                    )
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isSaving) "Saving..." else "Save Changes",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(120.dp))
         }
         
         // Avatar Photo Options Dialog
