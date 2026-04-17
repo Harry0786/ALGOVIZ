@@ -131,8 +131,43 @@ class SupabaseAuthDataSource @Inject constructor(
             Timber.d("AuthDataSource: Password reset email sent successfully")
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.e(e, "AuthDataSource: Password reset email error - ${e.message}")
-            Result.failure(e)
+            val message = e.message.orEmpty()
+            Timber.e(e, "AuthDataSource: Password reset email error - $message")
+
+            when {
+                message.contains("for security purposes", ignoreCase = true) ||
+                    message.contains("recovery email", ignoreCase = true) -> {
+                    // Supabase can intentionally return generic responses; treat as success to avoid user enumeration UX issues.
+                    Result.success(Unit)
+                }
+
+                message.contains("Authorization=[Bearer ]", ignoreCase = true) -> {
+                    Result.failure(
+                        IllegalStateException(
+                            "Build misconfigured: SUPABASE_KEY is missing in this APK. Install the latest release build."
+                        )
+                    )
+                }
+
+                message.contains("redirect_to", ignoreCase = true) && message.contains("not allowed", ignoreCase = true) -> {
+                    Result.failure(
+                        IllegalStateException(
+                            "Password reset redirect URL is not allowed. Please update Supabase Auth redirect settings."
+                        )
+                    )
+                }
+
+                message.contains("rate limit", ignoreCase = true) ||
+                    message.contains("too many", ignoreCase = true) -> {
+                    Result.failure(
+                        IllegalStateException(
+                            "Too many reset attempts. Please wait a few minutes and try again."
+                        )
+                    )
+                }
+
+                else -> Result.failure(e)
+            }
         }
     }
 

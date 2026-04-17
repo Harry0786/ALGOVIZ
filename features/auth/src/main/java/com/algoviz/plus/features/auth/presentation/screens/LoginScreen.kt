@@ -124,7 +124,7 @@ fun LoginScreen(
                 viewModel.clearError()
             }
             is AuthUiState.PasswordResetEmailSent -> {
-                val message = "Password reset email sent! Check your inbox."
+                val message = "Password reset email sent. Check your inbox and spam folder."
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 snackbarHostState.showSnackbar(message)
                 showForgotPasswordDialog = false
