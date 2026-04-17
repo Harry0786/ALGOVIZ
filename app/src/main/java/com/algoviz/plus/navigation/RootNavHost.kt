@@ -7,8 +7,14 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,6 +23,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -265,6 +273,7 @@ fun RootNavHost(
 @Composable
 private fun SplashScreen() {
     var showFrame2 by remember { mutableStateOf(false) }
+    var showFinalFrame by remember { mutableStateOf(false) }
 
     val frame2Alpha by animateFloatAsState(
         targetValue = if (showFrame2) 1f else 0f,
@@ -274,14 +283,24 @@ private fun SplashScreen() {
         ),
         label = "SplashFrame2Alpha"
     )
+    val finalFrameAlpha by animateFloatAsState(
+        targetValue = if (showFinalFrame) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 220,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SplashFinalFrameAlpha"
+    )
 
     // Layered fades prevent hard image swaps and keep the sequence smooth.
     LaunchedEffect(Unit) {
         delay(SPLASH_FRAME_STEP_MS)
         showFrame2 = true
+        delay(SPLASH_FRAME_STEP_MS)
+        showFinalFrame = true
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = com.algoviz.plus.R.drawable.sp1),
             contentDescription = "Splash Screen Frame 1",
@@ -296,6 +315,27 @@ private fun SplashScreen() {
                 .graphicsLayer(alpha = frame2Alpha),
             contentScale = ContentScale.FillBounds
         )
+
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.splash_screen),
+            contentDescription = "Splash Screen",
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(alpha = finalFrameAlpha),
+            contentScale = ContentScale.FillBounds
+        )
+
+        // Hide the white bar artifact embedded in the final splash frame.
+        if (showFinalFrame) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = maxHeight * 0.615f)
+                    .width(maxWidth * 0.12f)
+                    .height(maxHeight * 0.0065f)
+                    .background(Color.Black, RoundedCornerShape(percent = 50))
+            )
+        }
     }
 }
 
