@@ -145,6 +145,7 @@ dependencies {
 
     implementation(libs.bundles.supabase)
     implementation(libs.coil)
+    implementation(libs.slf4j.nop)
     
     implementation(libs.timber)
     

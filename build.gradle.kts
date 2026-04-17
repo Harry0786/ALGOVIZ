@@ -8,9 +8,9 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.ktlint) apply false
-    alias(libs.plugins.google.services) apply false
 }
 
 tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
 }
+

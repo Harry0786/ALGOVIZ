@@ -66,29 +66,27 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:datastore"))
     implementation(project(":domain"))
-    
+
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    
+
     implementation(platform(libs.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.compose.navigation)
     debugImplementation(libs.compose.ui.tooling)
-    
+
     implementation(libs.bundles.lifecycle)
-    
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.supabase.gotrue)
-    implementation(libs.play.services.auth)
-    implementation(libs.credentials.play.services.auth)
-    implementation(libs.google.id.library)
-    
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
     implementation(libs.timber)
-    
+
     testImplementation(libs.bundles.testing)
     androidTestImplementation(libs.bundles.android.testing)
 }
