@@ -1,7 +1,6 @@
 package com.algoviz.plus.core.designsystem.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -62,7 +61,7 @@ private val DarkColorScheme = darkColorScheme(
     
     surface = SurfaceDark,
     onSurface = TextPrimaryDark,
-    surfaceVariant = Color(0xFF334155),
+    surfaceVariant = Color.Black,
     onSurfaceVariant = TextSecondaryDark,
     
     error = Error,
@@ -76,7 +75,7 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun AlgoVizTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -85,10 +84,10 @@ fun AlgoVizTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = Color.Black.toArgb()
-            window.navigationBarColor = Color.Black.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

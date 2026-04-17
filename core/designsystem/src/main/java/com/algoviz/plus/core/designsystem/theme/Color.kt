@@ -13,10 +13,10 @@ val SecondaryLight = Color(0xFFA78BFA)
 
 // Background Colors
 val BackgroundLight = Color(0xFFFAFAFA)
-val BackgroundDark = Color(0xFF0F172A)
+val BackgroundDark = Color(0xFF000000)
 
 val SurfaceLight = Color(0xFFFFFFFF)
-val SurfaceDark = Color(0xFF1E293B)
+val SurfaceDark = Color(0xFF000000)
 
 // Text Colors
 val TextPrimaryLight = Color(0xFF0F172A)

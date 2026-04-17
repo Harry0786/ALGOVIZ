@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
         }
         
         setContent {
-            AlgoVizTheme {
+            AlgoVizTheme(darkTheme = true) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
