@@ -265,7 +265,6 @@ fun RootNavHost(
 @Composable
 private fun SplashScreen() {
     var showFrame2 by remember { mutableStateOf(false) }
-    var showFinalFrame by remember { mutableStateOf(false) }
 
     val frame2Alpha by animateFloatAsState(
         targetValue = if (showFrame2) 1f else 0f,
@@ -275,21 +274,11 @@ private fun SplashScreen() {
         ),
         label = "SplashFrame2Alpha"
     )
-    val finalFrameAlpha by animateFloatAsState(
-        targetValue = if (showFinalFrame) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 220,
-            easing = FastOutSlowInEasing
-        ),
-        label = "SplashFinalFrameAlpha"
-    )
 
     // Layered fades prevent hard image swaps and keep the sequence smooth.
     LaunchedEffect(Unit) {
         delay(SPLASH_FRAME_STEP_MS)
         showFrame2 = true
-        delay(SPLASH_FRAME_STEP_MS)
-        showFinalFrame = true
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -305,14 +294,6 @@ private fun SplashScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(alpha = frame2Alpha),
-            contentScale = ContentScale.FillBounds
-        )
-        Image(
-            painter = painterResource(id = com.algoviz.plus.R.drawable.splash_screen),
-            contentDescription = "Splash Screen",
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(alpha = finalFrameAlpha),
             contentScale = ContentScale.FillBounds
         )
     }
