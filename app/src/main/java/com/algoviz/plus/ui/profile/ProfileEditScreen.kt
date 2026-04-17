@@ -163,6 +163,23 @@ fun ProfileEditScreen(
 
         Box(
             modifier = Modifier
+                .fillMaxWidth()
+                .height(360.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color(0x55FFFFFF),
+                            Color(0x22000000),
+                            Color.Transparent
+                        ),
+                        radius = 720f
+                    )
+                )
+        )
+
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.78f))
         )
@@ -263,7 +280,7 @@ fun ProfileEditScreen(
             Text(text = "Name", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
-                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                color = Color(0xFF34363B).copy(alpha = 0.95f),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -293,7 +310,7 @@ fun ProfileEditScreen(
             Text(text = "Email", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
-                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                color = Color(0xFF34363B).copy(alpha = 0.95f),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -323,7 +340,7 @@ fun ProfileEditScreen(
             Text(text = "Bio", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
-                color = Color(0xFF35373D).copy(alpha = 0.95f),
+                color = Color(0xFF34363B).copy(alpha = 0.95f),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -357,7 +374,7 @@ fun ProfileEditScreen(
             Box {
                 Surface(
                     onClick = { showStudyGoalMenu = true },
-                    color = Color(0xFF35373D).copy(alpha = 0.95f),
+                    color = Color(0xFF34363B).copy(alpha = 0.95f),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -414,7 +431,7 @@ fun ProfileEditScreen(
             Box {
                 Surface(
                     onClick = { showSkillMenu = true },
-                    color = Color(0xFF35373D).copy(alpha = 0.95f),
+                    color = Color(0xFF34363B).copy(alpha = 0.95f),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -464,7 +481,7 @@ fun ProfileEditScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(42.dp))
+            Spacer(modifier = Modifier.height(34.dp))
 
             Surface(
                 onClick = {

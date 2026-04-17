@@ -74,9 +74,6 @@ import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.R
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
-import com.algoviz.plus.update.AppUpdateViewModel
-import com.algoviz.plus.ui.version.installedVersionLabel
-import com.algoviz.plus.ui.version.versionStatusText
 import java.io.File
 
 @Composable
@@ -84,12 +81,10 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit,
     onLogoutClick: () -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel(),
-    updateViewModel: AppUpdateViewModel = hiltViewModel()
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
-    val updateState by updateViewModel.updateState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -213,35 +208,6 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "VERSION ${installedVersionLabel()}",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                fontSize = 12.sp,
-                color = Color(0xFFB8B8BA),
-                letterSpacing = 2.2.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = when (val state = updateState) {
-                    is AppUpdateViewModel.UpdateState.UpdateAvailable -> versionStatusText(state.info.versionName)
-                    is AppUpdateViewModel.UpdateState.Downloading -> "Installed: ${installedVersionLabel()}  •  Update downloading"
-                    is AppUpdateViewModel.UpdateState.DownloadFailed -> versionStatusText(state.info?.versionName)
-                    else -> versionStatusText(null)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                fontSize = 11.sp,
-                color = Color(0xFF8F9095),
-                letterSpacing = 0.4.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
 
             HorizontalDivider(
                 modifier = Modifier
