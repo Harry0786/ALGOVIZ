@@ -11,6 +11,7 @@ import com.algoviz.plus.features.auth.domain.usecase.LoginUseCase
 import com.algoviz.plus.features.auth.domain.usecase.LogoutUseCase
 import com.algoviz.plus.features.auth.domain.usecase.RegisterUseCase
 import com.algoviz.plus.features.auth.domain.usecase.SendPasswordResetEmailUseCase
+import com.algoviz.plus.features.auth.domain.usecase.UpdatePasswordUseCase
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ class AuthViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val sendPasswordResetEmailUseCase: SendPasswordResetEmailUseCase,
+    private val updatePasswordUseCase: UpdatePasswordUseCase,
     private val changePasswordUseCase: ChangePasswordUseCase,
     private val getCurrentUserEmailUseCase: GetCurrentUserEmailUseCase,
     private val preferencesManager: PreferencesManager
@@ -155,6 +157,20 @@ class AuthViewModel @Inject constructor(
                 .onFailure { error ->
                     Timber.e(error, "Password reset email failed")
                     _uiState.value = AuthUiState.Error(error.message ?: "Failed to send password reset email")
+                }
+        }
+    }
+
+    fun updatePassword(newPassword: String) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            updatePasswordUseCase(newPassword)
+                .onSuccess {
+                    _uiState.value = AuthUiState.PasswordChanged
+                }
+                .onFailure { error ->
+                    Timber.e(error, "Recovery password update failed")
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to update password")
                 }
         }
     }

@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.algoviz.plus.features.auth.presentation.screens.LoginScreen
 import com.algoviz.plus.features.auth.presentation.screens.RegisterScreen
+import com.algoviz.plus.features.auth.presentation.screens.ResetPasswordScreen
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
 import androidx.annotation.DrawableRes
@@ -22,6 +23,7 @@ sealed class AuthRoute(val route: String) {
     data object AuthGraph : AuthRoute("auth_graph")
     data object Login : AuthRoute("login")
     data object Register : AuthRoute("register")
+    data object ResetPassword : AuthRoute("reset_password")
 }
 
 fun NavGraphBuilder.authNavGraph(
@@ -56,6 +58,20 @@ fun NavGraphBuilder.authNavGraph(
                         popUpTo(AuthRoute.Register.route) {
                             inclusive = true
                         }
+                    }
+                }
+            )
+        }
+
+        composable(AuthRoute.ResetPassword.route) {
+            ResetPasswordScreen(
+                backgroundRes = backgroundRes,
+                onDone = {
+                    navController.navigate(AuthRoute.Login.route) {
+                        popUpTo(AuthRoute.AuthGraph.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 }
             )

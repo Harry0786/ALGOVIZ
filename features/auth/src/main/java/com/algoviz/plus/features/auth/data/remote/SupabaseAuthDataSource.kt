@@ -21,6 +21,10 @@ data class RegistrationOutcome(
 class SupabaseAuthDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
+    companion object {
+        private const val PASSWORD_RESET_REDIRECT_URL = "algovizplus://password-reset"
+    }
+
     fun observeAuthState(): Flow<UserInfo?> {
         return supabaseClient.auth.sessionStatus.map { status ->
             when (status) {
@@ -127,7 +131,10 @@ class SupabaseAuthDataSource @Inject constructor(
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return try {
             Timber.d("AuthDataSource: Sending password reset email to: $email")
-            supabaseClient.auth.resetPasswordForEmail(email)
+            supabaseClient.auth.resetPasswordForEmail(
+                email = email,
+                redirectUrl = PASSWORD_RESET_REDIRECT_URL
+            )
             Timber.d("AuthDataSource: Password reset email sent successfully")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -192,6 +199,22 @@ class SupabaseAuthDataSource @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Timber.e(e, "Password change error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePassword(newPassword: String): Result<Unit> {
+        return try {
+            if (supabaseClient.auth.currentSessionOrNull() == null) {
+                return Result.failure(Exception("No authenticated user"))
+            }
+
+            supabaseClient.auth.modifyUser {
+                this.password = newPassword
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Password update error")
             Result.failure(e)
         }
     }

@@ -24,7 +24,10 @@ object SupabaseModule {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_KEY
         ) {
-            install(Auth)
+            install(Auth) {
+                scheme = "algovizplus"
+                host = "password-reset"
+            }
             install(Postgrest)
             install(Storage)
             install(Realtime)

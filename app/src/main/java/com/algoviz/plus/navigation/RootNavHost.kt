@@ -60,13 +60,15 @@ private const val DEFAULT_ALGORITHM_ID = "bubble_sort"
 
 @Composable
 fun RootNavHost(
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    isPasswordResetLink: Boolean = false
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     var splashFinished by remember { mutableStateOf(false) }
+    var pendingResetFlow by remember { mutableStateOf(isPasswordResetLink) }
 
     // Keep a short splash to avoid feeling delayed at startup.
     LaunchedEffect(Unit) {
@@ -88,7 +90,14 @@ fun RootNavHost(
 
         when (authState) {
             is AuthUiState.Authenticated -> {
-                if (currentRoute !in setOf(
+                if (pendingResetFlow) {
+                    pendingResetFlow = false
+                    if (currentRoute != AuthRoute.ResetPassword.route) {
+                        navController.navigate(AuthRoute.ResetPassword.route) {
+                            launchSingleTop = true
+                        }
+                    }
+                } else if (currentRoute !in setOf(
                         ROUTE_MAIN,
                         ROUTE_PROFILE,
                         ROUTE_PROFILE_EDIT,

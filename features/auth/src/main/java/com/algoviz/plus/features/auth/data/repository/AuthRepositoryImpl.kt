@@ -121,6 +121,17 @@ class AuthRepositoryImpl @Inject constructor(
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
             }
     }
+
+    override suspend fun updatePassword(newPassword: String): Result<Unit> {
+        if (!isValidPassword(newPassword)) {
+            return Result.failure(Exception(AuthError.WeakPassword().message))
+        }
+
+        return dataSource.updatePassword(newPassword)
+            .recoverCatching { exception ->
+                throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
+            }
+    }
     
     override fun getCurrentUserEmail(): String? {
         return dataSource.getCurrentUserEmail()
