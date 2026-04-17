@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -325,15 +326,24 @@ private fun SplashScreen() {
             contentScale = ContentScale.FillBounds
         )
 
-        // Hide the white bar artifact embedded in the final splash frame.
+        // Hide the line artifact embedded in the final splash frame using a soft blend patch.
         if (showFinalFrame) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(y = maxHeight * 0.615f)
-                    .width(maxWidth * 0.12f)
-                    .height(maxHeight * 0.0065f)
-                    .background(Color.Black, RoundedCornerShape(percent = 50))
+                    .width(maxWidth * 0.105f)
+                    .height(maxHeight * 0.0048f)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xCC1E1F22),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = RoundedCornerShape(percent = 50)
+                    )
             )
         }
     }
