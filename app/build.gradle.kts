@@ -111,7 +111,7 @@ android {
 
             val releaseSupabaseUrl = readLocalProperty(
                 "SUPABASE_URL_RELEASE",
-                readLocalProperty("SUPABASE_URL", "https://supabase.algoviz.app")
+                readLocalProperty("SUPABASE_URL", "")
             )
             buildConfigField("String", "SUPABASE_URL", toBuildConfigString(releaseSupabaseUrl))
         }

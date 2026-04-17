@@ -20,6 +20,13 @@ object SupabaseModule {
     @Provides
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
+        check(BuildConfig.SUPABASE_URL.isNotBlank()) {
+            "Build misconfigured: SUPABASE_URL is missing in this APK."
+        }
+        check(BuildConfig.SUPABASE_KEY.isNotBlank()) {
+            "Build misconfigured: SUPABASE_KEY is missing in this APK."
+        }
+
         return createSupabaseClient(
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_KEY
