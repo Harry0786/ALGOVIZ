@@ -239,6 +239,33 @@ jobs:
           fi
           echo "apk_public_url=$APK_URL" >> "$GITHUB_OUTPUT"
 
+      - name: Upload update metadata asset to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.meta.outputs.tag_name }}
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          APK_PUBLIC_URL: ${{ steps.release_asset.outputs.apk_public_url }}
+          RELEASE_NOTES: ${{ steps.meta.outputs.release_notes }}
+          FORCE_UPDATE: ${{ steps.meta.outputs.force_update }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const payload = {
+            version_code: Number(process.env.VERSION_CODE),
+            version_name: process.env.VERSION_NAME,
+            apk_url: process.env.APK_PUBLIC_URL,
+            release_notes: process.env.RELEASE_NOTES,
+            force_update: String(process.env.FORCE_UPDATE).toLowerCase() === 'true'
+          };
+
+          fs.writeFileSync('algoviz-update.json', JSON.stringify(payload, null, 2));
+          NODE
+
+          gh release upload "$TAG_NAME" algoviz-update.json --clobber
+
       - name: Publish APK metadata (Supabase)
         shell: bash
         env:

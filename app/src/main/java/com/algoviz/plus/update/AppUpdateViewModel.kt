@@ -16,18 +16,29 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
+import java.io.IOException
+import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URL
 import javax.inject.Inject
 
 @HiltViewModel
 class AppUpdateViewModel @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) : ViewModel() {
+
+    private companion object {
+        const val GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/Harry0786/ALGOVIZ/releases/latest"
+        const val GITHUB_METADATA_ASSET_NAME = "algoviz-update.json"
+    }
 
     @Serializable
     private data class AppConfigRow(
@@ -68,29 +79,14 @@ class AppUpdateViewModel @Inject constructor(
     private fun checkForUpdate() {
         viewModelScope.launch {
             try {
-                val config = appConfigTable
-                    .select {
-                        limit(1)
-                        filter {
-                            eq("id", "latest_version")
-                        }
-                    }
-                    .decodeSingleOrNull<AppConfigRow>()
+                val updateInfo = fetchGitHubReleaseUpdateInfo() ?: fetchSupabaseUpdateInfo()
 
-                if (config == null) {
+                if (updateInfo == null) {
                     _updateState.value = UpdateState.UpToDate
                     return@launch
                 }
 
-                val remoteVersionCode = config.versionCode
-                if (remoteVersionCode > BuildConfig.VERSION_CODE) {
-                    val updateInfo = UpdateInfo(
-                        versionCode = remoteVersionCode,
-                        versionName = config.versionName.ifBlank { "New Version" },
-                        apkUrl = config.apkUrl,
-                        releaseNotes = config.releaseNotes.ifBlank { "Bug fixes and improvements." },
-                        forceUpdate = config.forceUpdate
-                    )
+                if (updateInfo.versionCode > BuildConfig.VERSION_CODE) {
                     lastUpdateInfo = updateInfo
                     _updateState.value = UpdateState.UpdateAvailable(updateInfo)
                 } else {
@@ -100,6 +96,95 @@ class AppUpdateViewModel @Inject constructor(
                 // Fail silently — never block the app if version check fails
                 _updateState.value = UpdateState.UpToDate
             }
+        }
+    }
+
+    private suspend fun fetchGitHubReleaseUpdateInfo(): UpdateInfo? = withContext(Dispatchers.IO) {
+        try {
+            val releaseJson = httpGetJson(GITHUB_LATEST_RELEASE_URL)
+            val release = JSONObject(releaseJson)
+            val assets = release.optJSONArray("assets") ?: return@withContext null
+
+            val metadataAssetUrl = (0 until assets.length())
+                .asSequence()
+                .map { assets.getJSONObject(it) }
+                .firstOrNull { it.optString("name").equals(GITHUB_METADATA_ASSET_NAME, ignoreCase = true) }
+                ?.optString("browser_download_url")
+                .orEmpty()
+
+            if (metadataAssetUrl.isBlank()) {
+                return@withContext null
+            }
+
+            val metadataJson = JSONObject(httpGetJson(metadataAssetUrl))
+            val versionCode = metadataJson.optInt("version_code", -1)
+            val versionName = metadataJson.optString("version_name", "")
+            val apkUrl = metadataJson.optString("apk_url", "")
+            val releaseNotes = metadataJson.optString("release_notes", "Bug fixes and improvements.")
+            val forceUpdate = metadataJson.optBoolean("force_update", false)
+
+            if (versionCode <= 0 || apkUrl.isBlank()) {
+                return@withContext null
+            }
+
+            UpdateInfo(
+                versionCode = versionCode,
+                versionName = versionName.ifBlank { "New Version" },
+                apkUrl = apkUrl,
+                releaseNotes = releaseNotes.ifBlank { "Bug fixes and improvements." },
+                forceUpdate = forceUpdate
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private suspend fun fetchSupabaseUpdateInfo(): UpdateInfo? = withContext(Dispatchers.IO) {
+        try {
+            val config = appConfigTable
+                .select {
+                    limit(1)
+                    filter {
+                        eq("id", "latest_version")
+                    }
+                }
+                .decodeSingleOrNull<AppConfigRow>()
+
+            config?.let {
+                UpdateInfo(
+                    versionCode = it.versionCode,
+                    versionName = it.versionName.ifBlank { "New Version" },
+                    apkUrl = it.apkUrl,
+                    releaseNotes = it.releaseNotes.ifBlank { "Bug fixes and improvements." },
+                    forceUpdate = it.forceUpdate
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun httpGetJson(url: String): String {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            setRequestProperty("Accept", "application/vnd.github+json")
+            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            setRequestProperty("User-Agent", "AlgoViz-Android/${BuildConfig.VERSION_NAME}")
+        }
+
+        try {
+            val statusCode = connection.responseCode
+            val stream = if (statusCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream ?: throw IOException("HTTP $statusCode from $url")
+            }
+
+            return stream.bufferedReader().use { it.readText() }
+        } finally {
+            connection.disconnect()
         }
     }
 
