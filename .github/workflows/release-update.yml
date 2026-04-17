@@ -74,6 +74,7 @@ jobs:
           RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jbmdxZXVlaHJ6a3dqc2xyaGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNzU4NTAsImV4cCI6MjA5MTk1MTg1MH0.j5YtEH85fiDx2XJBpyBNT1bsQl81Axihb9uZDtDIO-g
           GOOGLE_WEB_CLIENT_ID=139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com
           EOF
 
@@ -84,6 +85,11 @@ jobs:
       - name: Validate auth release config
         shell: bash
         run: |
+          if ! grep -q '^SUPABASE_KEY=[^[:space:]]\+' local.properties; then
+            echo "SUPABASE_KEY is missing from CI local.properties"
+            exit 1
+          fi
+
           if ! grep -q '^GOOGLE_WEB_CLIENT_ID=[^[:space:]]\+' local.properties; then
             echo "GOOGLE_WEB_CLIENT_ID is missing from CI local.properties"
             exit 1
