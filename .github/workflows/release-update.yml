@@ -156,6 +156,17 @@ jobs:
           echo "Resolved APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
 
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          APKSIGNER_PATH=$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools" -type f -name apksigner | sort | tail -n1)
+          if [[ -z "$APKSIGNER_PATH" ]]; then
+            echo "apksigner not found in Android build-tools"
+            exit 1
+          fi
+
+          "$APKSIGNER_PATH" verify --verbose --print-certs "${{ steps.apk.outputs.apk_path }}"
+
       - name: Commit version bump and push tag
         shell: bash
         run: |
