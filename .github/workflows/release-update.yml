@@ -87,16 +87,26 @@ jobs:
           VERSION_CODE=$(grep -m1 'versionCode\s*=\s*' app/build.gradle.kts | sed -E 's/[^0-9]//g')
           VERSION_NAME=$(grep -m1 'versionName\s*=\s*"' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
 
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
+          next_version() {
+            local current="$1"
+
+            if [[ "$current" =~ ^2\.0$ ]]; then
+              echo "2.0.1"
+            elif [[ "$current" =~ ^2\.0\.([0-9]+)$ ]]; then
+              local patch="${BASH_REMATCH[1]}"
+              echo "2.0.$((patch + 1))"
+            else
+              echo "2.0"
+            fi
+          }
+
           NEXT_CODE=$((VERSION_CODE + 1))
-          NEXT_PATCH=$((PATCH + 1))
-          NEXT_NAME="$MAJOR.$MINOR.$NEXT_PATCH"
+          NEXT_NAME=$(next_version "$VERSION_NAME")
           TAG_NAME="v$NEXT_NAME"
 
           while git rev-parse "$TAG_NAME" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null 2>&1; do
             NEXT_CODE=$((NEXT_CODE + 1))
-            NEXT_PATCH=$((NEXT_PATCH + 1))
-            NEXT_NAME="$MAJOR.$MINOR.$NEXT_PATCH"
+            NEXT_NAME=$(next_version "$NEXT_NAME")
             TAG_NAME="v$NEXT_NAME"
           done
 
