@@ -72,6 +72,14 @@ fun RegisterScreen(
                 }
                 viewModel.clearError()
             }
+            is AuthUiState.EmailVerificationRequired -> {
+                val message = (uiState as AuthUiState.EmailVerificationRequired).message
+                scope.launch {
+                    snackbarHostState.showSnackbar(message)
+                }
+                viewModel.clearError()
+                onNavigateToLogin()
+            }
             else -> {}
         }
     }

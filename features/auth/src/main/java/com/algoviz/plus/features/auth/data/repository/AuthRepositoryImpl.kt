@@ -2,8 +2,10 @@ package com.algoviz.plus.features.auth.data.repository
 
 import com.algoviz.plus.features.auth.data.mapper.AuthErrorMapper
 import com.algoviz.plus.features.auth.data.mapper.AuthMapper
+import com.algoviz.plus.features.auth.data.remote.RegistrationOutcome
 import com.algoviz.plus.features.auth.data.remote.SupabaseAuthDataSource
 import com.algoviz.plus.features.auth.domain.model.AuthError
+import com.algoviz.plus.features.auth.domain.model.RegistrationResult
 import com.algoviz.plus.features.auth.domain.model.User
 import com.algoviz.plus.features.auth.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +23,7 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun register(email: String, password: String): Result<User> {
+    override suspend fun register(email: String, password: String): Result<RegistrationResult> {
         if (!isValidEmail(email)) {
             return Result.failure(Exception(AuthError.InvalidEmail().message))
         }
@@ -31,8 +33,11 @@ class AuthRepositoryImpl @Inject constructor(
         }
         
         return dataSource.register(email, password)
-            .mapCatching { supabaseUser ->
-                AuthMapper.mapSupabaseUserToDomain(supabaseUser)
+            .mapCatching { outcome: RegistrationOutcome ->
+                RegistrationResult(
+                    user = outcome.user?.let { AuthMapper.mapSupabaseUserToDomain(it) },
+                    requiresEmailVerification = outcome.requiresEmailVerification
+                )
             }
             .recoverCatching { exception ->
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)

@@ -78,12 +78,23 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             registerUseCase(email, password)
-                .onSuccess { user ->
-                    // Save email to DataStore
-                    user.email?.let { userEmail ->
-                        preferencesManager.saveProfileEmail(userEmail)
+                .onSuccess { result ->
+                    preferencesManager.saveProfileEmail(email)
+
+                    result.user?.let { user ->
+                        preferencesManager.saveProfileEmail(user.email)
+                        _uiState.value = AuthUiState.Authenticated(user)
+                        return@onSuccess
                     }
-                    _uiState.value = AuthUiState.Authenticated(user)
+
+                    if (result.requiresEmailVerification) {
+                        _uiState.value = AuthUiState.EmailVerificationRequired(
+                            "Account created. Check your email to verify your account before signing in."
+                        )
+                        return@onSuccess
+                    }
+
+                    _uiState.value = AuthUiState.Error("Registration completed, but no user session was created.")
                 }
                 .onFailure { error ->
                     Timber.e(error, "Registration failed")
@@ -124,6 +135,7 @@ class AuthViewModel @Inject constructor(
     
     fun clearError() {
         if (_uiState.value is AuthUiState.Error ||
+            _uiState.value is AuthUiState.EmailVerificationRequired ||
             _uiState.value is AuthUiState.PasswordResetEmailSent ||
             _uiState.value is AuthUiState.PasswordChanged) {
             _uiState.value = AuthUiState.Idle

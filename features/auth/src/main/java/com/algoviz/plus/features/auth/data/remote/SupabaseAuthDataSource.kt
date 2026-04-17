@@ -13,6 +13,11 @@ import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import javax.inject.Inject
 
+data class RegistrationOutcome(
+    val user: UserInfo?,
+    val requiresEmailVerification: Boolean
+)
+
 class SupabaseAuthDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
@@ -25,15 +30,19 @@ class SupabaseAuthDataSource @Inject constructor(
         }
     }
 
-    suspend fun register(email: String, password: String): Result<UserInfo> {
+    suspend fun register(email: String, password: String): Result<RegistrationOutcome> {
         return try {
             supabaseClient.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
             }
             val user = supabaseClient.auth.currentUserOrNull()
-                ?: return Result.failure(Exception("Registration created account but no active session"))
-            Result.success(user)
+            Result.success(
+                RegistrationOutcome(
+                    user = user,
+                    requiresEmailVerification = user == null
+                )
+            )
         } catch (e: Exception) {
             Timber.e(e, "Registration error")
             Result.failure(e)

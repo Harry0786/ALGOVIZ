@@ -81,6 +81,14 @@ jobs:
         shell: bash
         run: cat local.properties
 
+      - name: Validate auth release config
+        shell: bash
+        run: |
+          if ! grep -q '^GOOGLE_WEB_CLIENT_ID=[^[:space:]]\+' local.properties; then
+            echo "GOOGLE_WEB_CLIENT_ID is missing from CI local.properties"
+            exit 1
+          fi
+
       - name: Resolve release metadata
         id: meta
         shell: bash

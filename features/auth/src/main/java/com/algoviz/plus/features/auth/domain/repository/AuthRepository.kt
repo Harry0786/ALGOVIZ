@@ -1,13 +1,14 @@
 package com.algoviz.plus.features.auth.domain.repository
 
 import com.algoviz.plus.features.auth.domain.model.AuthError
+import com.algoviz.plus.features.auth.domain.model.RegistrationResult
 import com.algoviz.plus.features.auth.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
     fun observeAuthState(): Flow<User?>
     
-    suspend fun register(email: String, password: String): Result<User>
+    suspend fun register(email: String, password: String): Result<RegistrationResult>
     
     suspend fun login(email: String, password: String): Result<User>
     
