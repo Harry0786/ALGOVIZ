@@ -252,6 +252,7 @@ fun RootNavHost(
 
                 composable(ROUTE_PROFILE) {
                     ProfileScreen(
+                        onBackClick = { navController.popBackStack() },
                         onEditProfileClick = { navController.navigate(ROUTE_PROFILE_EDIT) },
                         onLogoutClick = { authViewModel.logout() },
                         authViewModel = authViewModel

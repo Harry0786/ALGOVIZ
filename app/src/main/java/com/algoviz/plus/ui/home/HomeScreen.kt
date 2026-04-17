@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -153,56 +154,77 @@ fun HomeScreen(
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Quick Start",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Quick Actions",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "VIEW ALL",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = Color.White.copy(alpha = 0.95f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     QuickActionCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
                         icon = Icons.Outlined.PlayArrow,
                         title = "Visualize",
                         subtitle = "Algorithms",
-                        gradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2)),
                         onClick = onVisualize
                     )
                     QuickActionCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
                         icon = Icons.Outlined.Groups,
-                        title = "Study Rooms",
-                        subtitle = "Collaborate",
-                        gradient = listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)),
+                        title = "Study",
+                        subtitle = "Rooms",
                         onClick = onStudyRooms
                     )
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     QuickActionCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Outlined.School,
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
+                        icon = Icons.AutoMirrored.Outlined.MenuBook,
                         title = "Learn",
                         subtitle = "Concepts",
-                        gradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777)),
                         onClick = onLearn
                     )
                     QuickActionCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
                         icon = Icons.Outlined.Person,
                         title = "Profile",
-                        subtitle = "Account",
-                        gradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
+                        subtitle = "Settings",
                         onClick = onProfileClick
                     )
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -248,50 +270,62 @@ private fun QuickActionCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    gradient: List<Color>,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier.height(130.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier,
+        shape = RoundedCornerShape(34.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         )
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(gradient)
-                )
-                .padding(20.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
-            Column(
+            Image(
+                painter = painterResource(id = com.algoviz.plus.R.drawable.quick_action_button),
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
+                contentScale = ContentScale.FillBounds
+            )
 
-                Column {
-                    Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(37.dp))
+                        .background(Color(0xFFE8E8E8)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = title,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
