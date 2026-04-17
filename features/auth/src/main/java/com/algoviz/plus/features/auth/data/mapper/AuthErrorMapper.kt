@@ -14,6 +14,7 @@ object AuthErrorMapper {
                 when {
                     message.contains("invalid login") || message.contains("invalid credentials") || message.contains("bad jwt") -> AuthError.InvalidCredentials()
                     message.contains("email not confirmed") -> AuthError.EmailNotVerified()
+                    message.contains("no active session") || message.contains("check your email") || message.contains("verification") -> AuthError.EmailNotVerified("Account created. Check your email to verify your account.")
                     message.contains("already registered") || message.contains("already exists") || message.contains("user already") -> AuthError.UserCollision()
                     message.contains("invalid email") || message.contains("validation") -> AuthError.InvalidEmail()
                     message.contains("password") && message.contains("weak") -> AuthError.WeakPassword()
@@ -21,7 +22,15 @@ object AuthErrorMapper {
                 }
             }
 
-            else -> AuthError.Unknown(exception.message ?: "Unknown error occurred")
+            else -> {
+                when {
+                    message.contains("no active session") || message.contains("check your email") || message.contains("verification") -> {
+                        AuthError.EmailNotVerified("Account created. Check your email to verify your account.")
+                    }
+
+                    else -> AuthError.Unknown(exception.message ?: "Unknown error occurred")
+                }
+            }
         }
     }
 }

@@ -74,6 +74,7 @@ jobs:
           RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_WEB_CLIENT_ID=139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com
           EOF
 
       - name: Show generated local.properties
