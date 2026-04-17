@@ -135,9 +135,11 @@ jobs:
         id: apk
         shell: bash
         run: |
-          APK_PATH=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | head -n1)
+          APK_PATH=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' ! -name '*-unsigned.apk' | sort | head -n1)
           if [[ -z "$APK_PATH" ]]; then
-            echo "No APK found in app/build/outputs/apk/release"
+            echo "No signed APK found in app/build/outputs/apk/release"
+            echo "Available APK files:"
+            find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort || true
             exit 1
           fi
 

@@ -31,6 +31,25 @@ android {
     namespace = "com.algoviz.plus"
     compileSdk = 34
 
+    val releaseStoreFilePath = readLocalProperty("RELEASE_STORE_FILE")
+    val hasReleaseSigningConfig = releaseStoreFilePath.isNotBlank() &&
+        readLocalProperty("RELEASE_STORE_PASSWORD").isNotBlank() &&
+        readLocalProperty("RELEASE_KEY_ALIAS").isNotBlank() &&
+        readLocalProperty("RELEASE_KEY_PASSWORD").isNotBlank()
+
+    signingConfigs {
+        if (hasReleaseSigningConfig) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath)
+                storePassword = readLocalProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = readLocalProperty("RELEASE_KEY_ALIAS")
+                keyPassword = readLocalProperty("RELEASE_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.algoviz.plus"
         minSdk = 26
@@ -82,6 +101,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
