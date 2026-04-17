@@ -75,7 +75,16 @@ class SupabaseAuthDataSource @Inject constructor(
             Result.success(user)
         } catch (e: Exception) {
             Timber.e(e, "Google sign-in error")
-            Result.failure(e)
+            val message = e.message.orEmpty()
+            if (message.contains("Authorization=[Bearer ]", ignoreCase = true)) {
+                Result.failure(
+                    IllegalStateException(
+                        "Build misconfigured: SUPABASE_KEY is missing in this APK. Install the latest release build."
+                    )
+                )
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
