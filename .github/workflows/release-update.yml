@@ -154,7 +154,22 @@ jobs:
         shell: bash
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:assembleRelease --no-daemon
+          for attempt in 1 2 3 4 5; do
+            echo "Gradle build attempt $attempt/5"
+            if ./gradlew :app:assembleRelease --no-daemon; then
+              echo "Gradle build succeeded on attempt $attempt"
+              break
+            fi
+
+            if [[ "$attempt" -eq 5 ]]; then
+              echo "Gradle build failed after 5 attempts"
+              exit 1
+            fi
+
+            retry_delay=$((attempt * 15))
+            echo "Gradle build failed; retrying in ${retry_delay}s..."
+            sleep "$retry_delay"
+          done
 
       - name: Resolve APK output path
         id: apk
