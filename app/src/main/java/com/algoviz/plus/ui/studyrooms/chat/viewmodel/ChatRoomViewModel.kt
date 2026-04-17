@@ -90,6 +90,7 @@ class ChatRoomViewModel @Inject constructor(
             currentUserId = user.id
 
             getStudyRoomsUseCase.markRoomAsRead(roomId, user.id)
+            syncMemberCountUseCase(roomId)
             observeOtherRoomsUnreadCounts(user.id)
             
             try {
@@ -99,8 +100,6 @@ class ChatRoomViewModel @Inject constructor(
                     getRoomMembersUseCase(roomId).catch { emit(emptyList()) }
                 ) { room, messages, members ->
                     if (room != null) {
-                        // Sync member count to ensure room.memberCount matches actual members
-                        syncMemberCountUseCase(roomId)
                         ChatRoomUiState.Success(
                             room = room,
                             messages = messages,

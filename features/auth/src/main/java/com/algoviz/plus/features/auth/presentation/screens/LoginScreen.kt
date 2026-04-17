@@ -53,6 +53,7 @@ import com.algoviz.plus.features.auth.presentation.components.PasswordTextField
 import com.algoviz.plus.features.auth.presentation.components.PrimaryButton
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
+import com.algoviz.plus.features.auth.BuildConfig
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -361,6 +362,10 @@ fun LoginScreen(
 }
 
 private fun resolveWebClientId(context: android.content.Context): String {
+    if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()) {
+        return BuildConfig.GOOGLE_WEB_CLIENT_ID
+    }
+
     val id = context.resources.getIdentifier(
         "default_web_client_id",
         "string",
@@ -371,8 +376,7 @@ private fun resolveWebClientId(context: android.content.Context): String {
         return context.getString(id)
     }
 
-    // Fallback for builds where google-services resource generation is missing.
-    return "139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com"
+    return ""
 }
 
 @Composable

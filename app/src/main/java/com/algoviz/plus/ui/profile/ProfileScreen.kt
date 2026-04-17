@@ -74,6 +74,9 @@ import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.R
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
 import com.algoviz.plus.features.auth.presentation.viewmodel.AuthViewModel
+import com.algoviz.plus.update.AppUpdateViewModel
+import com.algoviz.plus.ui.version.installedVersionLabel
+import com.algoviz.plus.ui.version.versionStatusText
 import java.io.File
 
 @Composable
@@ -81,21 +84,28 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit,
     onLogoutClick: () -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel()
+    profileViewModel: ProfileViewModel = hiltViewModel(),
+    updateViewModel: AppUpdateViewModel = hiltViewModel()
 ) {
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val updateState by updateViewModel.updateState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var passwordChangeError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(authUiState) {
-        when (authUiState) {
+        when (val state = authUiState) {
             is AuthUiState.PasswordChanged -> {
                 showChangePasswordDialog = false
+                passwordChangeError = null
                 authViewModel.clearError()
             }
             is AuthUiState.Error -> {
+                if (showChangePasswordDialog) {
+                    passwordChangeError = state.message
+                }
                 authViewModel.clearError()
             }
             else -> Unit
@@ -205,7 +215,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "VERSION ${BuildConfig.VERSION_NAME.substringBefore('-').uppercase()}",
+                text = "VERSION ${installedVersionLabel()}",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 fontSize = 12.sp,
@@ -215,6 +225,23 @@ fun ProfileScreen(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = when (val state = updateState) {
+                    is AppUpdateViewModel.UpdateState.UpdateAvailable -> versionStatusText(state.info.versionName)
+                    is AppUpdateViewModel.UpdateState.Downloading -> "Installed: ${installedVersionLabel()}  •  Update downloading"
+                    is AppUpdateViewModel.UpdateState.DownloadFailed -> versionStatusText(state.info?.versionName)
+                    else -> versionStatusText(null)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                fontSize = 11.sp,
+                color = Color(0xFF8F9095),
+                letterSpacing = 0.4.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             HorizontalDivider(
                 modifier = Modifier
@@ -233,10 +260,15 @@ fun ProfileScreen(
 
     if (showChangePasswordDialog) {
         ProfileChangePasswordDialog(
-            onDismiss = { showChangePasswordDialog = false },
+            onDismiss = {
+                showChangePasswordDialog = false
+                passwordChangeError = null
+            },
             onChangePassword = { currentPwd, newPwd ->
                 authViewModel.changePassword(currentPwd, newPwd)
             },
+            backendErrorMessage = passwordChangeError,
+            onInputChanged = { passwordChangeError = null },
             isLoading = authUiState is AuthUiState.Loading
         )
     }
@@ -374,6 +406,8 @@ private fun ProfileActionCard(
 private fun ProfileChangePasswordDialog(
     onDismiss: () -> Unit,
     onChangePassword: (String, String) -> Unit,
+    backendErrorMessage: String?,
+    onInputChanged: () -> Unit,
     isLoading: Boolean
 ) {
     var currentPassword by remember { mutableStateOf("") }
@@ -440,6 +474,7 @@ private fun ProfileChangePasswordDialog(
                     onValueChange = {
                         currentPassword = it
                         errorMessage = null
+                        onInputChanged()
                     },
                     trailingIcon = if (showCurrentPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                     onTrailingClick = { showCurrentPassword = !showCurrentPassword },
@@ -453,6 +488,7 @@ private fun ProfileChangePasswordDialog(
                     onValueChange = {
                         newPassword = it
                         errorMessage = null
+                        onInputChanged()
                     },
                     trailingIcon = Icons.Outlined.Lock,
                     onTrailingClick = null,
@@ -466,6 +502,7 @@ private fun ProfileChangePasswordDialog(
                     onValueChange = {
                         confirmNewPassword = it
                         errorMessage = null
+                        onInputChanged()
                     },
                     trailingIcon = Icons.Outlined.Shield,
                     onTrailingClick = null,
@@ -496,6 +533,17 @@ private fun ProfileChangePasswordDialog(
                 if (errorMessage != null) {
                     Text(
                         text = errorMessage.orEmpty(),
+                        modifier = Modifier.fillMaxWidth(0.94f),
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = dialogFont
+                    )
+                }
+
+                if (!backendErrorMessage.isNullOrBlank()) {
+                    Text(
+                        text = backendErrorMessage,
                         modifier = Modifier.fillMaxWidth(0.94f),
                         color = Color(0xFFFF6B6B),
                         fontSize = 12.sp,
@@ -668,9 +716,8 @@ private fun shareAppPackage(context: android.content.Context) {
     try {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val apkPath = packageInfo.applicationInfo.sourceDir
-        val apkFile = File(apkPath)
-
-        if (!apkFile.exists()) {
+        val sourceApk = File(apkPath)
+        if (!sourceApk.exists()) {
             return
         }
 
@@ -679,9 +726,9 @@ private fun shareAppPackage(context: android.content.Context) {
             cacheDir.mkdirs()
         }
 
-        val copiedApk = File(cacheDir, "AlgoViz.apk")
-        apkFile.inputStream().use { input ->
-            copiedApk.outputStream().use { output ->
+        val sharedApk = File(cacheDir, "AlgoViz-${BuildConfig.VERSION_NAME}.apk")
+        sourceApk.inputStream().use { input ->
+            sharedApk.outputStream().use { output ->
                 input.copyTo(output)
             }
         }
@@ -689,14 +736,14 @@ private fun shareAppPackage(context: android.content.Context) {
         val apkUri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.provider",
-            copiedApk
+            sharedApk
         )
 
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "application/vnd.android.package-archive"
             putExtra(Intent.EXTRA_STREAM, apkUri)
             putExtra(Intent.EXTRA_SUBJECT, "AlgoViz+ App")
-            putExtra(Intent.EXTRA_TEXT, "Check out AlgoViz+ - Learn algorithms through visualization!")
+            putExtra(Intent.EXTRA_TEXT, "Install AlgoViz+ app")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 

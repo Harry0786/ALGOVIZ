@@ -1,18 +1,18 @@
 package com.algoviz.plus.features.auth.data.mapper
 
 import com.algoviz.plus.features.auth.domain.model.User
-import com.google.firebase.auth.FirebaseUser
+import io.github.jan.supabase.gotrue.user.UserInfo
 
 object AuthMapper {
-    fun mapFirebaseUserToDomain(firebaseUser: FirebaseUser): User {
+    fun mapFirebaseUserToDomain(firebaseUser: UserInfo): User {
         return User(
-            id = firebaseUser.uid,
+            id = firebaseUser.id,
             email = firebaseUser.email ?: "",
-            isEmailVerified = firebaseUser.isEmailVerified
+            isEmailVerified = firebaseUser.emailConfirmedAt != null || firebaseUser.confirmedAt != null
         )
     }
     
-    fun mapFirebaseUserToDomainOrNull(firebaseUser: FirebaseUser?): User? {
+    fun mapFirebaseUserToDomainOrNull(firebaseUser: UserInfo?): User? {
         return firebaseUser?.let { mapFirebaseUserToDomain(it) }
     }
 }

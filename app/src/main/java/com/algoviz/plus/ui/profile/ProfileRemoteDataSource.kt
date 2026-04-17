@@ -1,39 +1,49 @@
 package com.algoviz.plus.ui.profile
 
+import android.content.Context
 import android.net.Uri
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
-import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.tasks.await
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.storage.storage
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ProfileRemoteDataSource @Inject constructor(
-    private val firebaseAuth: FirebaseAuth,
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    @ApplicationContext private val appContext: Context,
+    private val supabaseClient: SupabaseClient
 ) {
 
     private companion object {
-        const val PROFILES_COLLECTION = "user_profiles"
+        const val PROFILE_IMAGES_BUCKET = "profile-images"
         const val PROFILE_IMAGES_PATH = "profile_images"
     }
 
-    fun getCurrentUserId(): String? = firebaseAuth.currentUser?.uid
+    fun getCurrentUserId(): String? = supabaseClient.auth.currentUserOrNull()?.id
 
     suspend fun uploadProfileImage(imageUri: Uri): Result<String> {
         return try {
             val uid = getCurrentUserId() ?: return Result.failure(Exception("No authenticated user"))
-            val imageRef = storage.reference
-                .child(PROFILE_IMAGES_PATH)
-                .child("$uid.jpg")
+            val objectPath = "$PROFILE_IMAGES_PATH/$uid.jpg"
+            val bytes = appContext.contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
+                ?: return Result.failure(Exception("Unable to read selected image"))
 
-            imageRef.putFile(imageUri).await()
-            val downloadUrl = imageRef.downloadUrl.await().toString()
-            Result.success(downloadUrl)
+            supabaseClient.storage
+                .from(PROFILE_IMAGES_BUCKET)
+                .upload(objectPath, bytes, upsert = true)
+
+            val publicUrl = supabaseClient.storage
+                .from(PROFILE_IMAGES_BUCKET)
+                .publicRenderUrl(objectPath)
+
+            Result.success(publicUrl)
         } catch (e: Exception) {
             Timber.e(e, "Failed to upload profile image")
             Result.failure(e)
@@ -42,22 +52,22 @@ class ProfileRemoteDataSource @Inject constructor(
 
     suspend fun saveUserProfile(profile: UserProfile): Result<Unit> {
         return try {
-            val uid = getCurrentUserId() ?: return Result.failure(Exception("No authenticated user"))
-            val payload = hashMapOf(
-                "name" to profile.name,
-                "email" to profile.email,
-                "bio" to profile.bio,
-                "avatarUrl" to (profile.avatarUrl ?: ""),
-                "studyGoal" to profile.studyGoal,
-                "skillLevel" to profile.skillLevel,
-                "avatarColorIndex" to profile.avatarColorIndex,
-                "updatedAt" to System.currentTimeMillis()
-            )
+            if (supabaseClient.auth.currentSessionOrNull() == null) {
+                return Result.failure(Exception("No authenticated user"))
+            }
 
-            firestore.collection(PROFILES_COLLECTION)
-                .document(uid)
-                .set(payload, SetOptions.merge())
-                .await()
+            supabaseClient.auth.modifyUser {
+                data {
+                    put("name", profile.name)
+                    put("email", profile.email)
+                    put("bio", profile.bio)
+                    put("avatarUrl", profile.avatarUrl ?: "")
+                    put("studyGoal", profile.studyGoal)
+                    put("skillLevel", profile.skillLevel)
+                    put("avatarColorIndex", profile.avatarColorIndex)
+                    put("updatedAt", System.currentTimeMillis())
+                }
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -68,24 +78,24 @@ class ProfileRemoteDataSource @Inject constructor(
 
     suspend fun getUserProfile(): Result<UserProfile?> {
         return try {
-            val uid = getCurrentUserId() ?: return Result.success(null)
-            val snapshot = firestore.collection(PROFILES_COLLECTION)
-                .document(uid)
-                .get()
-                .await()
-
-            if (!snapshot.exists()) {
+            val user = supabaseClient.auth.currentUserOrNull() ?: return Result.success(null)
+            val metadata = user.userMetadata
+            if (metadata == null || metadata.isEmpty()) {
                 return Result.success(null)
             }
 
+            fun JsonObject.string(key: String, fallback: String): String {
+                return this[key]?.jsonPrimitive?.content?.ifBlank { fallback } ?: fallback
+            }
+
             val profile = UserProfile(
-                name = snapshot.getString("name") ?: "AlgoViz User",
-                email = snapshot.getString("email") ?: "user@algoviz.com",
-                bio = snapshot.getString("bio") ?: "Learning algorithms and data structures",
-                avatarUrl = snapshot.getString("avatarUrl"),
-                studyGoal = snapshot.getString("studyGoal") ?: "Master algorithms",
-                skillLevel = snapshot.getString("skillLevel") ?: "Beginner",
-                avatarColorIndex = (snapshot.getLong("avatarColorIndex") ?: 0L).toInt()
+                name = metadata.string("name", "AlgoViz User"),
+                email = metadata.string("email", user.email ?: "user@algoviz.com"),
+                bio = metadata.string("bio", "Learning algorithms and data structures"),
+                avatarUrl = metadata["avatarUrl"]?.jsonPrimitive?.content,
+                studyGoal = metadata.string("studyGoal", "Master algorithms"),
+                skillLevel = metadata.string("skillLevel", "Beginner"),
+                avatarColorIndex = metadata["avatarColorIndex"]?.jsonPrimitive?.intOrNull ?: 0
             )
 
             Result.success(profile)

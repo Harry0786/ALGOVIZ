@@ -2,19 +2,33 @@ package com.algoviz.plus.ui.update
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 
 @HiltViewModel
 class AdminAppUpdateViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val supabaseClient: SupabaseClient
 ) : ViewModel() {
+
+    @Serializable
+    private data class AppConfigRow(
+        val id: String,
+        @SerialName("version_code") val versionCode: Int,
+        @SerialName("version_name") val versionName: String,
+        @SerialName("apk_url") val apkUrl: String,
+        @SerialName("release_notes") val releaseNotes: String,
+        @SerialName("force_update") val forceUpdate: Boolean
+    )
 
     data class FormState(
         val versionCode: String = "",
@@ -29,6 +43,7 @@ class AdminAppUpdateViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(FormState())
     val state: StateFlow<FormState> = _state.asStateFlow()
+    private val appConfigTable = supabaseClient.postgrest["app_config"]
 
     init {
         loadCurrentConfig()
@@ -77,19 +92,40 @@ class AdminAppUpdateViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null, message = null)
             try {
-                firestore.collection("app_config")
-                    .document("latest_version")
-                    .set(
-                        mapOf(
-                            "versionCode" to versionCode,
-                            "versionName" to current.versionName.trim(),
-                            "apkUrl" to current.apkUrl.trim(),
-                            "releaseNotes" to current.releaseNotes.trim(),
-                            "forceUpdate" to current.forceUpdate,
-                            "updatedAt" to System.currentTimeMillis()
-                        )
-                    )
-                    .await()
+                val existingConfig = appConfigTable
+                    .select {
+                        limit(1)
+                        filter {
+                            eq("id", "latest_version")
+                        }
+                    }
+                    .decodeSingleOrNull<AppConfigRow>()
+
+                val payload = buildJsonObject {
+                    put("version_code", versionCode)
+                    put("version_name", current.versionName.trim())
+                    put("apk_url", current.apkUrl.trim())
+                    put("release_notes", current.releaseNotes.trim())
+                    put("force_update", current.forceUpdate)
+                }
+
+                if (existingConfig == null) {
+                    val insertPayload = buildJsonObject {
+                        put("id", "latest_version")
+                        put("version_code", versionCode)
+                        put("version_name", current.versionName.trim())
+                        put("apk_url", current.apkUrl.trim())
+                        put("release_notes", current.releaseNotes.trim())
+                        put("force_update", current.forceUpdate)
+                    }
+                    appConfigTable.insert(insertPayload)
+                } else {
+                    appConfigTable.update(payload) {
+                        filter {
+                            eq("id", "latest_version")
+                        }
+                    }
+                }
 
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -107,19 +143,21 @@ class AdminAppUpdateViewModel @Inject constructor(
     private fun loadCurrentConfig() {
         viewModelScope.launch {
             try {
-                val doc = firestore.collection("app_config")
-                    .document("latest_version")
-                    .get()
-                    .await()
-
-                if (!doc.exists()) return@launch
+                val config = appConfigTable
+                    .select {
+                        limit(1)
+                        filter {
+                            eq("id", "latest_version")
+                        }
+                    }
+                    .decodeSingleOrNull<AppConfigRow>() ?: return@launch
 
                 _state.value = _state.value.copy(
-                    versionCode = (doc.getLong("versionCode") ?: 0L).toString(),
-                    versionName = doc.getString("versionName") ?: "",
-                    apkUrl = doc.getString("apkUrl") ?: "",
-                    releaseNotes = doc.getString("releaseNotes") ?: "",
-                    forceUpdate = doc.getBoolean("forceUpdate") ?: false
+                    versionCode = config.versionCode.toString(),
+                    versionName = config.versionName,
+                    apkUrl = config.apkUrl,
+                    releaseNotes = config.releaseNotes,
+                    forceUpdate = config.forceUpdate
                 )
             } catch (_: Exception) {
                 // Keep default values if loading fails.

@@ -20,9 +20,13 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -50,11 +54,35 @@ class StudyRoomsViewModel @Inject constructor(
         loadRooms()
         setupSearchDebounce()
     }
+
+    private suspend fun awaitAuthenticatedUser() =
+        withTimeoutOrNull(2500L) {
+            getCurrentUserUseCase().filterNotNull().firstOrNull()
+        } ?: getCurrentUserUseCase().firstOrNull()
+
+    private fun Throwable.toUserMessage(defaultMessage: String): String {
+        val raw = message?.trim().orEmpty()
+        if (raw.isBlank()) return defaultMessage
+
+        val normalized = raw.lowercase()
+        return when {
+            normalized.contains("http") ||
+                normalized.contains("url") ||
+                normalized.contains("socket") ||
+                normalized.contains("timeout") ||
+                normalized.contains("postgrest") ||
+                normalized.contains("supabase") ||
+                normalized.contains("failed to fetch") -> "Connection issue. Please try again."
+            else -> raw
+        }
+    }
     
     @OptIn(FlowPreview::class)
     private fun setupSearchDebounce() {
         viewModelScope.launch {
             _searchQuery
+                .drop(1)
+                .distinctUntilChanged()
                 .debounce(300)
                 .collect { query ->
                     if (query.isBlank()) {
@@ -71,7 +99,7 @@ class StudyRoomsViewModel @Inject constructor(
         loadRoomsJob?.cancel()
         loadRoomsJob = viewModelScope.launch {
             try {
-                val user = getCurrentUserUseCase().firstOrNull()
+                val user = awaitAuthenticatedUser()
                 if (user == null) {
                     _uiState.value = StudyRoomsUiState.Error("User not authenticated")
                     return@launch
@@ -102,7 +130,7 @@ class StudyRoomsViewModel @Inject constructor(
                     }
                     .catch { e ->
                         if (e !is CancellationException) {
-                            _uiState.value = StudyRoomsUiState.Error(e.message ?: "Search failed")
+                                _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("Search failed"))
                         }
                     }
                     .collect { state ->
@@ -112,7 +140,7 @@ class StudyRoomsViewModel @Inject constructor(
                 // Ignore cancellation exceptions - this is normal when switching between search/load
                 throw e
             } catch (e: Exception) {
-                _uiState.value = StudyRoomsUiState.Error(e.message ?: "Search error")
+                _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("Search error"))
             }
         }
     }
@@ -121,7 +149,7 @@ class StudyRoomsViewModel @Inject constructor(
         loadRoomsJob?.cancel()
         loadRoomsJob = viewModelScope.launch {
             try {
-                val user = getCurrentUserUseCase().firstOrNull()
+                val user = awaitAuthenticatedUser()
                 if (user == null) {
                     _uiState.value = StudyRoomsUiState.Error("User not authenticated")
                     return@launch
@@ -148,7 +176,7 @@ class StudyRoomsViewModel @Inject constructor(
                 }
                 .catch { e ->
                     if (e !is CancellationException) {
-                        _uiState.value = StudyRoomsUiState.Error(e.message ?: "Failed to load rooms. Pull to refresh.")
+                        _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("Failed to load rooms. Pull to refresh."))
                     }
                 }
                 .collect { state ->
@@ -158,7 +186,7 @@ class StudyRoomsViewModel @Inject constructor(
                 // Ignore cancellation exceptions - this is normal when reloading
                 throw e
             } catch (e: Exception) {
-                _uiState.value = StudyRoomsUiState.Error(e.message ?: "An unexpected error occurred")
+                _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("An unexpected error occurred"))
             }
         }
     }
@@ -212,7 +240,7 @@ class StudyRoomsViewModel @Inject constructor(
                         _uiState.value = currentState.copy(loadingRoomId = null)
                     }
                     _uiState.value = StudyRoomsUiState.Error(
-                        error.message ?: "Failed to join room. Please try again."
+                        error.toUserMessage("Failed to join room. Please try again.")
                     )
                 }
                 
@@ -229,7 +257,7 @@ class StudyRoomsViewModel @Inject constructor(
                 if (currentState is StudyRoomsUiState.Success) {
                     _uiState.value = currentState.copy(loadingRoomId = null)
                 }
-                _uiState.value = StudyRoomsUiState.Error(e.message ?: "An error occurred")
+                _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("An error occurred"))
             }
         }
     }
@@ -272,13 +300,13 @@ class StudyRoomsViewModel @Inject constructor(
                 } else {
                     val error = result.exceptionOrNull()
                     _createRoomEvent.value = CreateRoomEvent.Error(
-                        error?.message ?: "Failed to create room"
+                        error?.toUserMessage("Failed to create room") ?: "Failed to create room"
                     )
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 _createRoomEvent.value = CreateRoomEvent.Error("Request timed out. Please try again.")
             } catch (e: Exception) {
-                _createRoomEvent.value = CreateRoomEvent.Error(e.message ?: "An unexpected error occurred")
+                _createRoomEvent.value = CreateRoomEvent.Error(e.toUserMessage("An unexpected error occurred"))
             }
         }
     }
@@ -312,7 +340,7 @@ class StudyRoomsViewModel @Inject constructor(
                         _uiState.value = currentState.copy(loadingRoomId = null)
                     }
                     _uiState.value = StudyRoomsUiState.Error(
-                        error.message ?: "Failed to leave room. Please try again."
+                        error.toUserMessage("Failed to leave room. Please try again.")
                     )
                 }
                 // Success cleared by real-time listener in loadRooms()
@@ -325,7 +353,7 @@ class StudyRoomsViewModel @Inject constructor(
                 if (currentState is StudyRoomsUiState.Success) {
                     _uiState.value = currentState.copy(loadingRoomId = null)
                 }
-                _uiState.value = StudyRoomsUiState.Error(e.message ?: "An error occurred")
+                _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("An error occurred"))
             }
         }
     }

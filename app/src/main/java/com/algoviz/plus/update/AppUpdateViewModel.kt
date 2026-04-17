@@ -11,21 +11,33 @@ import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.algoviz.plus.BuildConfig
-import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.net.URI
 import javax.inject.Inject
 
 @HiltViewModel
 class AppUpdateViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val supabaseClient: SupabaseClient
 ) : ViewModel() {
+
+    @Serializable
+    private data class AppConfigRow(
+        val id: String,
+        @SerialName("version_code") val versionCode: Int,
+        @SerialName("version_name") val versionName: String,
+        @SerialName("apk_url") val apkUrl: String,
+        @SerialName("release_notes") val releaseNotes: String,
+        @SerialName("force_update") val forceUpdate: Boolean
+    )
 
     data class UpdateInfo(
         val versionCode: Int,
@@ -47,6 +59,7 @@ class AppUpdateViewModel @Inject constructor(
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
     private var lastUpdateInfo: UpdateInfo? = null
     private var pendingInstallLocalUri: String? = null
+    private val appConfigTable = supabaseClient.postgrest["app_config"]
 
     init {
         checkForUpdate()
@@ -55,24 +68,28 @@ class AppUpdateViewModel @Inject constructor(
     private fun checkForUpdate() {
         viewModelScope.launch {
             try {
-                val doc = firestore.collection("app_config")
-                    .document("latest_version")
-                    .get()
-                    .await()
+                val config = appConfigTable
+                    .select {
+                        limit(1)
+                        filter {
+                            eq("id", "latest_version")
+                        }
+                    }
+                    .decodeSingleOrNull<AppConfigRow>()
 
-                if (!doc.exists()) {
+                if (config == null) {
                     _updateState.value = UpdateState.UpToDate
                     return@launch
                 }
 
-                val remoteVersionCode = doc.getLong("versionCode")?.toInt() ?: 0
+                val remoteVersionCode = config.versionCode
                 if (remoteVersionCode > BuildConfig.VERSION_CODE) {
                     val updateInfo = UpdateInfo(
                         versionCode = remoteVersionCode,
-                        versionName = doc.getString("versionName") ?: "New Version",
-                        apkUrl = doc.getString("apkUrl") ?: "",
-                        releaseNotes = doc.getString("releaseNotes") ?: "Bug fixes and improvements.",
-                        forceUpdate = doc.getBoolean("forceUpdate") ?: false
+                        versionName = config.versionName.ifBlank { "New Version" },
+                        apkUrl = config.apkUrl,
+                        releaseNotes = config.releaseNotes.ifBlank { "Bug fixes and improvements." },
+                        forceUpdate = config.forceUpdate
                     )
                     lastUpdateInfo = updateInfo
                     _updateState.value = UpdateState.UpdateAvailable(updateInfo)

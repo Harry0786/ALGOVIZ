@@ -3,8 +3,10 @@ package com.algoviz.plus.ui.notifications
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
+import com.algoviz.plus.features.auth.domain.model.User
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
@@ -27,7 +29,7 @@ class GlobalStudyRoomNotificationViewModel @Inject constructor(
 
     private fun startObservingUnread() {
         viewModelScope.launch {
-            val user = getCurrentUserUseCase().firstOrNull() ?: return@launch
+            val user = awaitAuthenticatedUser() ?: return@launch
 
             combine(
                 getStudyRoomsUseCase.unreadCounts(user.id).catch { emit(emptyMap()) },
@@ -106,5 +108,17 @@ class GlobalStudyRoomNotificationViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private suspend fun awaitAuthenticatedUser(timeoutMs: Long = 10_000L): User? {
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            val user = getCurrentUserUseCase().firstOrNull()
+            if (user != null) {
+                return user
+            }
+            delay(250L)
+        }
+        return null
     }
 }

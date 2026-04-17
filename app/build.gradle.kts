@@ -1,13 +1,30 @@
-﻿import java.util.Properties
-
-plugins {
+﻿plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.google.services)
+}
+
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
+fun readLocalProperty(name: String, defaultValue: String = ""): String {
+    return localProperties.getProperty(name, defaultValue)
+}
+
+fun toBuildConfigString(value: String): String {
+    val escaped = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$escaped\""
 }
 
 android {
@@ -16,117 +33,66 @@ android {
 
     defaultConfig {
         applicationId = "com.algoviz.plus"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
-        versionCode = 22
-        versionName = "1.1.32"
+        versionCode = 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
         vectorDrawables {
             useSupportLibrary = true
         }
 
-        resourceConfigurations += listOf("en")
-    }
-
-    signingConfigs {
-        create("release") {
-            // Values from local.properties
-            val keystorePropertiesFile = rootProject.file("local.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(keystorePropertiesFile.inputStream())
-                
-                val storeFilePath = keystoreProperties.getProperty("RELEASE_STORE_FILE")
-                if (storeFilePath != null) {
-                    storeFile = file(storeFilePath)
-                }
-                storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
-                keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
-                keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
-            }
-        }
-        
-        create("staging") {
-            val keystorePropertiesFile = rootProject.file("local.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(keystorePropertiesFile.inputStream())
-                
-                val storeFilePath = keystoreProperties.getProperty("STAGING_STORE_FILE")
-                if (storeFilePath != null) {
-                    storeFile = file(storeFilePath)
-                }
-                storePassword = keystoreProperties.getProperty("STAGING_STORE_PASSWORD")
-                keyAlias = keystoreProperties.getProperty("STAGING_KEY_ALIAS")
-                keyPassword = keystoreProperties.getProperty("STAGING_KEY_PASSWORD")
-            }
-        }
+        val supabaseKey = readLocalProperty("SUPABASE_KEY", readLocalProperty("SUPABASE_ANON_KEY", ""))
+        buildConfigField("String", "SUPABASE_KEY", toBuildConfigString(supabaseKey))
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+            versionNameSuffix = "-DEBUG"
             isDebuggable = true
-            isMinifyEnabled = false
-            
-            buildConfigField("String", "BASE_URL", "\"https://api-dev.algoviz.app/\"")
-            buildConfigField("String", "SUPABASE_URL", "\"https://dev.supabase.co\"")
-            buildConfigField("String", "SUPABASE_KEY", "\"\"")
+
+            val debugSupabaseUrl = readLocalProperty(
+                "SUPABASE_URL_DEBUG",
+                readLocalProperty("SUPABASE_URL", "https://dev.supabase.co")
+            )
+            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(debugSupabaseUrl))
         }
         
         create("staging") {
-            initWith(getByName("debug"))
             applicationIdSuffix = ".staging"
-            versionNameSuffix = "-staging"
-            isDebuggable = false
+            versionNameSuffix = "-STAGING"
+            isDebuggable = true
             isMinifyEnabled = true
             isShrinkResources = true
-            
-            signingConfig = signingConfigs.getByName("staging")
-            
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            
-            buildConfigField("String", "BASE_URL", "\"https://api-staging.algoviz.app/\"")
-            buildConfigField("String", "SUPABASE_URL", "\"https://staging.supabase.co\"")
-            buildConfigField("String", "SUPABASE_KEY", "\"\"")
+
+            val stagingSupabaseUrl = readLocalProperty(
+                "SUPABASE_URL_STAGING",
+                readLocalProperty("SUPABASE_URL", "https://dev.supabase.co")
+            )
+            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(stagingSupabaseUrl))
         }
         
         release {
-            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            
-            signingConfig = signingConfigs.getByName("release")
-            
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            
-            buildConfigField("String", "BASE_URL", "\"https://api.algoviz.app/\"")
-            buildConfigField("String", "SUPABASE_URL", "\"https://supabase.algoviz.app\"")
-            buildConfigField("String", "SUPABASE_KEY", "\"\"")
+
+            val releaseSupabaseUrl = readLocalProperty(
+                "SUPABASE_URL_RELEASE",
+                readLocalProperty("SUPABASE_URL", "https://supabase.algoviz.app")
+            )
+            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(releaseSupabaseUrl))
         }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-opt-in=kotlin.RequiresOptIn",
-            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-            "-opt-in=kotlinx.coroutines.FlowPreview"
-        )
     }
 
     buildFeatures {
@@ -135,20 +101,23 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "/META-INF/LICENSE.md"
-            excludes += "/META-INF/LICENSE-notice.md"
+            excludes += "/META-INF/gradle/incremental.annotation.processors"
         }
-    }
-
-    lint {
-        checkReleaseBuilds = false
-        abortOnError = false
     }
 }
 
@@ -164,57 +133,27 @@ dependencies {
     implementation(project(":features"))
     implementation(project(":features:auth"))
 
-    // Kotlin
-    implementation(libs.kotlin.stdlib)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.android)
-
-    // Compose
+    implementation("androidx.core:core-ktx:1.12.0")
     implementation(platform(libs.compose.bom))
     implementation(libs.bundles.compose)
+    implementation(libs.bundles.lifecycle)
     implementation(libs.compose.navigation)
+    
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
+
+    implementation(libs.bundles.supabase)
+    implementation(libs.coil)
+    
+    implementation(libs.timber)
+    
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 
-    // Lifecycle
-    implementation(libs.bundles.lifecycle)
-
-    // Hilt
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    kspAndroidTest(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
-
-    // Logging
-    implementation(libs.timber)
-    
-    // Image Loading
-    implementation(libs.coil)
-
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.messaging)
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.storage)
-    implementation(libs.firebase.firestore)
-    implementation(libs.play.services.auth)
-    implementation(libs.credentials.play.services.auth)
-    implementation(libs.google.id.library)
-    implementation(libs.kotlinx.coroutines.play.services)
-
-    // Desugaring
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
-    // Testing
-    testImplementation(libs.bundles.testing)
-    androidTestImplementation(libs.bundles.android.testing)
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
+    androidTestImplementation(libs.junit.ext)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
 }
-
-// Workaround for Android Studio Hilt issues
-hilt {
-    enableAggregatingTask = true
-}
-

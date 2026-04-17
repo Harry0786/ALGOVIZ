@@ -29,6 +29,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.algoviz.plus.ui.version.installedVersionLabel
+import com.algoviz.plus.ui.version.versionStatusText
 
 @Composable
 fun AppUpdateDialog(
@@ -152,9 +154,16 @@ private fun UpdateAvailableDialog(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Version ${info.versionName} is ready",
+                    text = versionStatusText(info.versionName),
                     color = Color(0xFF5EEAD4),
                     fontSize = 14.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Installed build: ${installedVersionLabel()}",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

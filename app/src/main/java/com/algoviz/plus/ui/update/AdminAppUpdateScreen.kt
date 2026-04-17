@@ -117,7 +117,7 @@ fun AdminAppUpdateScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Publish update metadata to Firestore",
+                    text = "Publish update metadata to Supabase",
                     color = Color.White.copy(alpha = 0.75f),
                     fontSize = 14.sp
                 )
