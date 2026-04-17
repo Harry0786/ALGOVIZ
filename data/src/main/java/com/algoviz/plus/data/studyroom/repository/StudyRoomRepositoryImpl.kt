@@ -3,7 +3,7 @@ package com.algoviz.plus.data.studyroom.repository
 import com.algoviz.plus.data.studyroom.mapper.StudyRoomMapper
 import com.algoviz.plus.data.studyroom.model.MessageDto
 import com.algoviz.plus.data.studyroom.model.StudyRoomDto
-import com.algoviz.plus.data.studyroom.remote.FirebaseStudyRoomDataSource
+import com.algoviz.plus.data.studyroom.remote.SupabaseStudyRoomDataSource
 import com.algoviz.plus.domain.model.Message
 import com.algoviz.plus.domain.model.RoomMember
 import com.algoviz.plus.domain.model.StudyRoom
@@ -16,7 +16,7 @@ import javax.inject.Singleton
 
 @Singleton
 class StudyRoomRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseStudyRoomDataSource
+    private val dataSource: SupabaseStudyRoomDataSource
 ) : StudyRoomRepository {
     
     override fun getAllRooms(): Flow<List<StudyRoom>> {

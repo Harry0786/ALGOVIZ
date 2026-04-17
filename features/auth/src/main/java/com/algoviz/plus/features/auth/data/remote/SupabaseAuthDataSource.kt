@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import javax.inject.Inject
 
-class FirebaseAuthDataSource @Inject constructor(
+class SupabaseAuthDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
     fun observeAuthState(): Flow<UserInfo?> {

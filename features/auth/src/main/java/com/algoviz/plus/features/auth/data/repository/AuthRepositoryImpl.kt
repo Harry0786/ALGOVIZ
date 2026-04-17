@@ -2,7 +2,7 @@ package com.algoviz.plus.features.auth.data.repository
 
 import com.algoviz.plus.features.auth.data.mapper.AuthErrorMapper
 import com.algoviz.plus.features.auth.data.mapper.AuthMapper
-import com.algoviz.plus.features.auth.data.remote.FirebaseAuthDataSource
+import com.algoviz.plus.features.auth.data.remote.SupabaseAuthDataSource
 import com.algoviz.plus.features.auth.domain.model.AuthError
 import com.algoviz.plus.features.auth.domain.model.User
 import com.algoviz.plus.features.auth.domain.repository.AuthRepository
@@ -12,12 +12,12 @@ import timber.log.Timber
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
-    private val dataSource: FirebaseAuthDataSource
+    private val dataSource: SupabaseAuthDataSource
 ) : AuthRepository {
     
     override fun observeAuthState(): Flow<User?> {
-        return dataSource.observeAuthState().map { firebaseUser ->
-            AuthMapper.mapFirebaseUserToDomainOrNull(firebaseUser)
+        return dataSource.observeAuthState().map { supabaseUser ->
+            AuthMapper.mapSupabaseUserToDomainOrNull(supabaseUser)
         }
     }
     
@@ -31,8 +31,8 @@ class AuthRepositoryImpl @Inject constructor(
         }
         
         return dataSource.register(email, password)
-            .mapCatching { firebaseUser ->
-                AuthMapper.mapFirebaseUserToDomain(firebaseUser)
+            .mapCatching { supabaseUser ->
+                AuthMapper.mapSupabaseUserToDomain(supabaseUser)
             }
             .recoverCatching { exception ->
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
@@ -45,8 +45,8 @@ class AuthRepositoryImpl @Inject constructor(
         }
         
         return dataSource.login(email, password)
-            .mapCatching { firebaseUser ->
-                AuthMapper.mapFirebaseUserToDomain(firebaseUser)
+            .mapCatching { supabaseUser ->
+                AuthMapper.mapSupabaseUserToDomain(supabaseUser)
             }
             .recoverCatching { exception ->
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
@@ -55,8 +55,8 @@ class AuthRepositoryImpl @Inject constructor(
     
     override suspend fun signInWithGoogle(idToken: String): Result<User> {
         return dataSource.signInWithGoogle(idToken)
-            .mapCatching { firebaseUser ->
-                AuthMapper.mapFirebaseUserToDomain(firebaseUser)
+            .mapCatching { supabaseUser ->
+                AuthMapper.mapSupabaseUserToDomain(supabaseUser)
             }
             .recoverCatching { exception ->
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
@@ -72,8 +72,8 @@ class AuthRepositoryImpl @Inject constructor(
     
     override suspend fun reloadUser(): Result<User?> {
         return dataSource.reloadUser()
-            .mapCatching { firebaseUser ->
-                AuthMapper.mapFirebaseUserToDomainOrNull(firebaseUser)
+            .mapCatching { supabaseUser ->
+                AuthMapper.mapSupabaseUserToDomainOrNull(supabaseUser)
             }
             .recoverCatching { exception ->
                 throw Exception(AuthErrorMapper.mapExceptionToAuthError(exception).message)
@@ -88,7 +88,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
     
     override fun getCurrentUser(): User? {
-        return AuthMapper.mapFirebaseUserToDomainOrNull(dataSource.getCurrentUser())
+        return AuthMapper.mapSupabaseUserToDomainOrNull(dataSource.getCurrentUser())
     }
     
     override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {

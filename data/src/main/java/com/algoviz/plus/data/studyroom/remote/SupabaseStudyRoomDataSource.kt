@@ -22,7 +22,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class FirebaseStudyRoomDataSource @Inject constructor(
+class SupabaseStudyRoomDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
     @Serializable

@@ -23,9 +23,8 @@ class AlgoVizApplication : Application() {
     private class CrashReportingTree : Timber.Tree() {
         override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
             if (priority == android.util.Log.ERROR || priority == android.util.Log.WARN) {
-                // Send to crash reporting service (Firebase Crashlytics, etc.)
                 t?.let {
-                    // FirebaseCrashlytics.getInstance().recordException(it)
+                    // Forward the exception to the crash reporting backend.
                 }
             }
         }
