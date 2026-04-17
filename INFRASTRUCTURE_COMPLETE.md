@@ -155,7 +155,6 @@ Copy-Item local.properties.template local.properties
 - Room 2.6.1
 - DataStore 1.0.0
 - Supabase KT 2.1.4
-- Firebase BOM 32.7.2
 - Coil 2.5.0
 - Timber 5.0.1
 

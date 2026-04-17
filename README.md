@@ -43,11 +43,9 @@ features/              - Feature modules (to be implemented)
 3. Sync Gradle
 4. Build project
 
-## Firebase to Supabase Migration
+## Supabase Data Schema
 
-- SQL schema for migrated study-room and config/profile data: `scripts/supabase_studyroom_schema.sql`
-- One-time Firestore to Supabase migration script: `scripts/migrate_firebase_to_supabase.py`
-- Step-by-step migration guide: `MIGRATE_FIREBASE_TO_SUPABASE.md`
+- Study-room and config/profile schema: `scripts/supabase_studyroom_schema.sql`
 
 ## MCP Setup (Supabase)
 
@@ -91,4 +89,4 @@ Feature modules ready for implementation:
 
 ---
 
-**Status**: Infrastructure Complete | Week 1 + Week 2 Foundation Ready
+**Status**: Supabase Runtime Complete

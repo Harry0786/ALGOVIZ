@@ -7,7 +7,7 @@ Authentication is now backed by Supabase GoTrue.
 - Email/password login and registration use Supabase Auth
 - Profile metadata is stored in Supabase user metadata
 - Google sign-in uses Supabase auth with Google ID tokens
-- No Firebase auth configuration is required for the app runtime
+- No additional legacy backend configuration is required for auth runtime
 
 ## Required Local Settings
 
