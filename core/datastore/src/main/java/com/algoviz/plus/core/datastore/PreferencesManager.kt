@@ -98,6 +98,16 @@ class PreferencesManager @Inject constructor(
         preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_NAME)] ?: "AlgoViz User"
     }
 
+    suspend fun saveProfileUsername(username: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_USERNAME)] = username
+        }
+    }
+
+    val profileUsername: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_USERNAME)] ?: ""
+    }
+
     suspend fun saveProfileEmail(email: String) {
         dataStore.edit { preferences ->
             preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL)] = email
@@ -106,6 +116,16 @@ class PreferencesManager @Inject constructor(
 
     val profileEmail: Flow<String> = dataStore.data.map { preferences ->
         preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL)] ?: "user@algoviz.com"
+    }
+
+    suspend fun saveProfilePhoneNumber(phoneNumber: String) {
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_PHONE_NUMBER)] = phoneNumber
+        }
+    }
+
+    val profilePhoneNumber: Flow<String> = dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_PHONE_NUMBER)] ?: ""
     }
 
     suspend fun saveProfileBio(bio: String) {
@@ -156,6 +176,31 @@ class PreferencesManager @Inject constructor(
 
     val profileAvatarColorIndex: Flow<Int> = dataStore.data.map { preferences ->
         preferences[intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX)] ?: 0
+    }
+
+    suspend fun saveProfileOnboardingCompleted(completed: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[booleanPreferencesKey(PreferenceKeys.KEY_PROFILE_ONBOARDING_COMPLETED)] = completed
+        }
+    }
+
+    val profileOnboardingCompleted: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[booleanPreferencesKey(PreferenceKeys.KEY_PROFILE_ONBOARDING_COMPLETED)] ?: false
+    }
+
+    suspend fun clearProfileCacheForAccountSwitch() {
+        dataStore.edit { preferences ->
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_NAME))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_USERNAME))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_PHONE_NUMBER))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL))
+            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL))
+            preferences.remove(intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX))
+            preferences.remove(booleanPreferencesKey(PreferenceKeys.KEY_PROFILE_ONBOARDING_COMPLETED))
+        }
     }
 
     // Learn progress

@@ -1,22 +1,23 @@
 package com.algoviz.plus.ui.profile
 
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
@@ -36,12 +37,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import timber.log.Timber
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileEditScreen(
     onBackClick: () -> Unit,
+    onSavedClick: () -> Unit = onBackClick,
+    isFirstTimeOnboarding: Boolean = false,
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userProfile by profileViewModel.userProfile.collectAsState()
@@ -50,35 +54,17 @@ fun ProfileEditScreen(
     val context = LocalContext.current
     
     var name by remember { mutableStateOf(userProfile.name) }
+    var username by remember { mutableStateOf(userProfile.username) }
     var email by remember { mutableStateOf(userProfile.email) }
-    var bio by remember { mutableStateOf(userProfile.bio) }
-    var studyGoal by remember { mutableStateOf(userProfile.studyGoal) }
-    var skillLevel by remember { mutableStateOf(userProfile.skillLevel) }
-    var showSkillMenu by remember { mutableStateOf(false) }
-    var showStudyGoalMenu by remember { mutableStateOf(false) }
+    var phoneNumber by remember { mutableStateOf(userProfile.phoneNumber) }
     var showAvatarDialog by remember { mutableStateOf(false) }
-    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
+    var showCameraPermissionDeniedDialog by remember { mutableStateOf(false) }
     var avatarUri by remember { mutableStateOf<Uri?>(userProfile.avatarUrl?.let { Uri.parse(it) }) }
-    var avatarColor by remember { mutableStateOf(userProfile.avatarColorIndex) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
-    
-    val skillLevels = listOf("Beginner", "Intermediate", "Advanced", "Expert")
-    val studyGoals = listOf(
-        "Master Data Structures & Algorithms",
-        "Prepare for Technical Interviews",
-        "Improve Problem-Solving Skills",
-        "Learn Competitive Programming",
-        "Understand Algorithm Complexity"
-    )
-    val avatarColors = listOf(
-        listOf(Color(0xFF5EEAD4), Color(0xFF06B6D4)), // Cyan
-        listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)), // Purple
-        listOf(Color(0xFFEC4899), Color(0xFFDB2777)), // Pink
-        listOf(Color(0xFF10B981), Color(0xFF059669)), // Green
-        listOf(Color(0xFFF59E0B), Color(0xFFD97706)), // Orange
-        listOf(Color(0xFFEF4444), Color(0xFFDC2626))  // Red
-    )
-    
+    var hasInitializedForm by remember { mutableStateOf(false) }
+    var isFormDirty by remember { mutableStateOf(false) }
+    val onboardingMode = remember { isFirstTimeOnboarding }
+
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -88,30 +74,34 @@ fun ProfileEditScreen(
         }
     }
 
-    val galleryPermission = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            android.Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            android.Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-    }
-
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            galleryLauncher.launch("image/*")
-        } else {
-            showPermissionDeniedDialog = true
-        }
-    }
-    
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && tempImageUri != null) {
             avatarUri = tempImageUri
-            profileViewModel.updateAvatarUrl(tempImageUri.toString())
+            tempImageUri?.let { uri ->
+                profileViewModel.uploadAvatarFromCamera(uri)
+            }
+        }
+    }
+
+    val launchCameraCapture = {
+        try {
+            val file = File.createTempFile(
+                "avatar_",
+                ".jpg",
+                context.cacheDir
+            )
+            tempImageUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            tempImageUri?.let { uri ->
+                cameraLauncher.launch(uri)
+            }
+        } catch (_: Exception) {
+            showCameraPermissionDeniedDialog = true
         }
     }
     
@@ -119,37 +109,28 @@ fun ProfileEditScreen(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Permission granted, launch camera
-            try {
-                val file = File.createTempFile(
-                    "avatar_",
-                    ".jpg",
-                    context.cacheDir
-                )
-                tempImageUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.provider",
-                    file
-                )
-                tempImageUri?.let { uri -> 
-                    cameraLauncher.launch(uri)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            launchCameraCapture.invoke()
+        } else {
+            showCameraPermissionDeniedDialog = true
         }
     }
-    
-    // Update local state when profile changes
-    LaunchedEffect(userProfile) {
-        name = userProfile.name
-        email = userProfile.email
-        bio = userProfile.bio
-        studyGoal = userProfile.studyGoal
-        skillLevel = userProfile.skillLevel
-        avatarColor = userProfile.avatarColorIndex
-        if (userProfile.avatarUrl?.isNotEmpty() == true) {
-            avatarUri = Uri.parse(userProfile.avatarUrl)
+
+    // Always keep avatar preview synced with saved profile avatar.
+    LaunchedEffect(userProfile.avatarUrl) {
+        Timber.d("ProfileEditScreen - LaunchedEffect avatarUrl: ${userProfile.avatarUrl ?: "null"}")
+        avatarUri = userProfile.avatarUrl?.takeIf { it.isNotBlank() }?.let(Uri::parse).also {
+            Timber.d("ProfileEditScreen - Parsed URI: $it")
+        }
+    }
+
+    // Initialize form once; avoid clobbering in-progress user edits from async profile refreshes.
+    LaunchedEffect(userProfile.name, userProfile.username, userProfile.email, userProfile.phoneNumber) {
+        if (!hasInitializedForm || !isFormDirty) {
+            name = userProfile.name
+            username = userProfile.username
+            email = userProfile.email
+            phoneNumber = userProfile.phoneNumber
+            hasInitializedForm = true
         }
     }
     
@@ -189,31 +170,35 @@ fun ProfileEditScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 22.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp),
+                    .padding(top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackClick, modifier = Modifier.size(34.dp)) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(36.dp),
+                    enabled = !isSaving  // Disable back while uploading
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        tint = if (isSaving) Color.Gray else Color.White,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
                 Text(
-                    text = "Edit Profile",
+                    text = if (onboardingMode) "Complete User Information" else "Edit Profile",
                     color = Color.White,
-                    fontSize = 19.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -221,14 +206,15 @@ fun ProfileEditScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(176.dp)
+                        .size(168.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFBFC1C6)),
+                        .border(4.dp, Color.White, CircleShape)
+                        .background(Color(0xFFB7B7BA)),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(168.dp)
+                            .size(160.dp)
                             .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -236,6 +222,9 @@ fun ProfileEditScreen(
                             AsyncImage(
                                 model = avatarUri,
                                 contentDescription = "Profile Picture",
+                                placeholder = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.user),
+                                error = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.user),
+                                fallback = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.user),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -252,8 +241,8 @@ fun ProfileEditScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .offset(x = (-2).dp, y = (-10).dp)
-                            .size(42.dp)
+                            .offset(x = 2.dp, y = (-4).dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF1A1D24)),
                         contentAlignment = Alignment.Center
@@ -262,7 +251,7 @@ fun ProfileEditScreen(
                             imageVector = Icons.Filled.CameraAlt,
                             contentDescription = "Change Photo",
                             tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -271,13 +260,13 @@ fun ProfileEditScreen(
                     onClick = { showAvatarDialog = true },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.92f))
                 ) {
-                    Text(text = "Change Photo", fontSize = 15.sp)
+                    Text(text = "Change Photo", fontSize = 14.sp)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Text(text = "Name", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Text(text = "Name", color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 color = Color(0xFF34363B).copy(alpha = 0.95f),
@@ -286,19 +275,22 @@ fun ProfileEditScreen(
             ) {
                 BasicTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = {
+                        name = it
+                        isFormDirty = true
+                    },
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = Color(0xFFE7E8EC),
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 22.dp, vertical = 19.dp),
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
                     decorationBox = { inner ->
                         if (name.isBlank()) {
-                            Text("Enter your name", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                            Text("Enter your name", color = Color(0xFFB7BAC1), fontSize = 16.sp)
                         }
                         inner()
                     }
@@ -307,7 +299,40 @@ fun ProfileEditScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            Text(text = "Email", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Text(text = "Username", color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = Color(0xFF34363B).copy(alpha = 0.95f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicTextField(
+                    value = username,
+                    onValueChange = {
+                        username = it
+                        isFormDirty = true
+                    },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color(0xFFE7E8EC),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    decorationBox = { inner ->
+                        if (username.isBlank()) {
+                            Text("Enter your username", color = Color(0xFFB7BAC1), fontSize = 16.sp)
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(text = "Email", color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 color = Color(0xFF34363B).copy(alpha = 0.95f),
@@ -316,19 +341,22 @@ fun ProfileEditScreen(
             ) {
                 BasicTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        isFormDirty = true
+                    },
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = Color(0xFFE7E8EC),
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 22.dp, vertical = 19.dp),
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
                     decorationBox = { inner ->
                         if (email.isBlank()) {
-                            Text("Enter your email", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                            Text("Enter your email", color = Color(0xFFB7BAC1), fontSize = 16.sp)
                         }
                         inner()
                     }
@@ -337,7 +365,7 @@ fun ProfileEditScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            Text(text = "Bio", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
+            Text(text = "Phone Number", color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 color = Color(0xFF34363B).copy(alpha = 0.95f),
@@ -345,154 +373,40 @@ fun ProfileEditScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 BasicTextField(
-                    value = bio,
-                    onValueChange = { bio = it },
-                    singleLine = false,
+                    value = phoneNumber,
+                    onValueChange = {
+                        phoneNumber = it
+                        isFormDirty = true
+                    },
+                    singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = Color(0xFFE7E8EC),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 28.sp
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(170.dp)
                         .padding(horizontal = 22.dp, vertical = 18.dp),
                     decorationBox = { inner ->
-                        if (bio.isBlank()) {
-                            Text("Tell us about your learning focus", color = Color(0xFFB7BAC1), fontSize = 17.sp)
+                        if (phoneNumber.isBlank()) {
+                            Text("Enter your phone number", color = Color(0xFFB7BAC1), fontSize = 16.sp)
                         }
                         inner()
                     }
                 )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(text = "Study Goal", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Box {
-                Surface(
-                    onClick = { showStudyGoalMenu = true },
-                    color = Color(0xFF34363B).copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = studyGoal,
-                            color = Color(0xFFE7E8EC),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Row {
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
-                        }
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = showStudyGoalMenu,
-                    onDismissRequest = { showStudyGoalMenu = false },
-                    modifier = Modifier
-                        .background(Color(0xFF1A1C23))
-                        .fillMaxWidth(0.92f)
-                ) {
-                    studyGoals.forEach { goal ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    goal,
-                                    color = if (goal == studyGoal) Color.White else Color.White.copy(alpha = 0.78f),
-                                    fontWeight = if (goal == studyGoal) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
-                                )
-                            },
-                            onClick = {
-                                studyGoal = goal
-                                showStudyGoalMenu = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(text = "Skill Level", color = Color.White.copy(alpha = 0.72f), fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Box {
-                Surface(
-                    onClick = { showSkillMenu = true },
-                    color = Color(0xFF34363B).copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = skillLevel,
-                            color = Color(0xFFE7E8EC),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Row {
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF8B90A0))
-                        }
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = showSkillMenu,
-                    onDismissRequest = { showSkillMenu = false },
-                    modifier = Modifier
-                        .background(Color(0xFF1A1C23))
-                        .fillMaxWidth(0.92f)
-                ) {
-                    skillLevels.forEach { level ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    level,
-                                    color = if (level == skillLevel) Color.White else Color.White.copy(alpha = 0.78f),
-                                    fontWeight = if (level == skillLevel) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
-                                )
-                            },
-                            onClick = {
-                                skillLevel = level
-                                showSkillMenu = false
-                            }
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(34.dp))
 
             Surface(
                 onClick = {
+                    isFormDirty = false
                     profileViewModel.saveProfileChanges(
                         name = name,
+                        username = username,
                         email = email,
-                        bio = bio,
-                        studyGoal = studyGoal,
-                        skillLevel = skillLevel,
-                        avatarColorIndex = avatarColor,
-                        onSaved = onBackClick
+                        phoneNumber = phoneNumber,
+                        onSaved = onSavedClick
                     )
                 },
                 enabled = !isSaving,
@@ -543,17 +457,7 @@ fun ProfileEditScreen(
                         Surface(
                             onClick = {
                                 showAvatarDialog = false
-
-                                val hasPermission = ContextCompat.checkSelfPermission(
-                                    context,
-                                    galleryPermission
-                                ) == PackageManager.PERMISSION_GRANTED
-
-                                if (hasPermission || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-                                    galleryLauncher.launch("image/*")
-                                } else {
-                                    galleryPermissionLauncher.launch(galleryPermission)
-                                }
+                                galleryLauncher.launch("image/*")
                             },
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.05f),
@@ -600,8 +504,16 @@ fun ProfileEditScreen(
                         Surface(
                             onClick = {
                                 showAvatarDialog = false
-                                // Request camera permission first
-                                cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                val hasCameraPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.CAMERA
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                                if (hasCameraPermission) {
+                                    launchCameraCapture.invoke()
+                                } else {
+                                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.05f),
@@ -659,37 +571,35 @@ fun ProfileEditScreen(
             )
         }
 
-        if (showPermissionDeniedDialog) {
-            AlertDialog(
-                onDismissRequest = { showPermissionDeniedDialog = false },
-                containerColor = Color(0xFF1A1344),
-                title = {
+        if (isSaving) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                color = Color(0xFF2A2E36),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFF6366F1)
+                    )
                     Text(
-                        text = "Photo Permission Needed",
+                        text = "Uploading avatar...",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                },
-                text = {
-                    Text(
-                        text = "Allow photo access to select a profile image from gallery.",
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showPermissionDeniedDialog = false
-                        galleryPermissionLauncher.launch(galleryPermission)
-                    }) {
-                        Text("Allow")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showPermissionDeniedDialog = false }) {
-                        Text("Not now")
-                    }
                 }
-            )
+            }
         }
 
         if (errorMessage != null) {
@@ -712,6 +622,52 @@ fun ProfileEditScreen(
                 confirmButton = {
                     TextButton(onClick = { profileViewModel.clearError() }) {
                         Text("OK")
+                    }
+                }
+            )
+        }
+
+        if (showCameraPermissionDeniedDialog) {
+            AlertDialog(
+                onDismissRequest = { showCameraPermissionDeniedDialog = false },
+                containerColor = Color(0xFF1A1344),
+                title = {
+                    Text(
+                        text = "Camera Permission Needed",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Allow camera access to take a profile photo.",
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCameraPermissionDeniedDialog = false
+                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                    }) {
+                        Text("Allow")
+                    }
+                },
+                dismissButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            showCameraPermissionDeniedDialog = false
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        }) {
+                            Text("Settings")
+                        }
+
+                        TextButton(onClick = { showCameraPermissionDeniedDialog = false }) {
+                            Text("Not now")
+                        }
                     }
                 }
             )

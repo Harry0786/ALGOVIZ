@@ -1,330 +1,497 @@
-package com.algoviz.plus.ui.home
+﻿package com.algoviz.plus.ui.home
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.input.ImeAction
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.algoviz.plus.features.auth.presentation.components.PasswordTextField
-import com.algoviz.plus.features.auth.presentation.components.PrimaryButton
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.algoviz.plus.ui.learn.viewmodel.LearnViewModel
+import com.algoviz.plus.ui.profile.ProfileViewModel
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class SheetCardData(
+    val backgroundRes: Int,
+    val title: String
+)
+
 @Composable
-fun HomeScreen(
-    onProfileClick: () -> Unit,
-    onVisualize: () -> Unit = {},
-    onLearn: () -> Unit = {},
-    onStudyRooms: () -> Unit = {},
-    learnViewModel: LearnViewModel = hiltViewModel()
+fun WelcomeBanner(
+    userName: String,
+    dateText: String,
+    avatarUrl: String? = null,
+    onProfileClick: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
-    val sheetProgressList by learnViewModel.homeSheetProgress.collectAsStateWithLifecycle()
-    Scaffold(
-        containerColor = Color.Transparent
-    ) { _ ->
-        Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        color = Color(0xFF1B1B1D).copy(alpha = 0.94f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.85f))
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .verticalScroll(scrollState)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Top Bar
-            Row(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF34414B)),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AppLogo(size = 40.dp)
-                    Text(
-                        text = "AlgoViz+",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = null,
+                        placeholder = painterResource(id = com.algoviz.plus.R.drawable.home_screen_icon),
+                        error = painterResource(id = com.algoviz.plus.R.drawable.home_screen_icon),
+                        fallback = painterResource(id = com.algoviz.plus.R.drawable.home_screen_icon),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-                }
-
-                IconButton(
-                    onClick = onProfileClick,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.1f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AccountCircle,
-                        contentDescription = "Profile",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                } else {
+                    Image(
+                        painter = painterResource(id = com.algoviz.plus.R.drawable.home_screen_icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-            // Welcome Section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Welcome Back",
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium
+                    text = "WELCOME BACK",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 10.sp,
+                    letterSpacing = 2.4.sp,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Master Algorithms\nThrough Visualization",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "Hi, $userName",
                     color = Color.White,
-                    lineHeight = 38.sp
-                )
-                Text(
-                    text = "Interactive learning platform for data structures and algorithms",
-                    fontSize = 15.sp,
-                    color = Color.White.copy(alpha = 0.65f),
-                    lineHeight = 22.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Quick Actions Grid
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Quick Actions",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "VIEW ALL",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
-                        color = Color.White.copy(alpha = 0.95f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    QuickActionCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f),
-                        icon = Icons.Outlined.PlayArrow,
-                        title = "Visualize",
-                        subtitle = "Algorithms",
-                        onClick = onVisualize
-                    )
-                    QuickActionCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f),
-                        icon = Icons.Outlined.Groups,
-                        title = "Study",
-                        subtitle = "Rooms",
-                        onClick = onStudyRooms
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    QuickActionCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f),
-                        icon = Icons.AutoMirrored.Outlined.MenuBook,
-                        title = "Learn",
-                        subtitle = "Concepts",
-                        onClick = onLearn
-                    )
-                    QuickActionCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f),
-                        icon = Icons.Outlined.Person,
-                        title = "Profile",
-                        subtitle = "Settings",
-                        onClick = onProfileClick
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Sheet Progress
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Sheet Progress",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    fontWeight = FontWeight.Bold
                 )
-
-                sheetProgressList.forEachIndexed { index, item ->
-                    val icon = when (index % 3) {
-                        0 -> Icons.AutoMirrored.Outlined.MenuBook
-                        1 -> Icons.Outlined.AccountTree
-                        else -> Icons.Outlined.School
-                    }
-                    TopicCard(
-                        icon = icon,
-                        title = item.title,
-                        description = item.subtitle,
-                        progress = item.progress
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Surface(
+                onClick = onProfileClick,
+                color = Color.White,
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text(
+                    text = dateText,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 11.dp),
+                    color = Color(0xFF111111),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
-    }
     }
 }
 
 @Composable
-private fun QuickActionCard(
+fun LearningProgressCard(
+    progress: Float,
+    streakText: String,
+    problemText: String
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.learning_progress_bar),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(205.dp),
+            contentScale = ContentScale.FillBounds
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(205.dp)
+                .padding(horizontal = 28.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "LEARNING PROGRESS",
+                fontSize = 10.sp,
+                color = Color.White.copy(alpha = 0.72f),
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.4.sp
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "72%",
+                    color = Color.White,
+                    fontSize = 46.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = "Completed",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(26.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(Color.Black.copy(alpha = 0.58f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(Color.White)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = streakText,
+                    color = Color.White.copy(alpha = 0.42f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp
+                )
+                Text(
+                    text = problemText,
+                    color = Color.White.copy(alpha = 0.42f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardSheetCard(
+    modifier: Modifier = Modifier,
+    backgroundRes: Int,
+    title: String
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1.02f)
+            .clip(RoundedCornerShape(34.dp))
+            .background(Color(0xFF0F1116))
+            .border(1.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(34.dp))
+    ) {
+        Image(
+            painter = painterResource(id = backgroundRes),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.62f))
+        )
+
+        Text(
+            text = title,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 14.dp),
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 21.sp
+        )
+    }
+}
+
+@Composable
+fun QuickActionCard(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     title: String,
     subtitle: String,
+    isRightCard: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.aspectRatio(0.98f),
         shape = RoundedCornerShape(34.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         )
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Image(
-                painter = painterResource(id = com.algoviz.plus.R.drawable.quick_action_button),
+                painter = painterResource(id = com.algoviz.plus.R.drawable.quick_button),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        if (isRightCard) {
+                            scaleX = -1f
+                        }
+                    },
                 contentScale = ContentScale.FillBounds
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.28f))
             )
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 18.dp),
-                verticalArrangement = Arrangement.Center,
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Box(
                     modifier = Modifier
-                        .size(74.dp)
-                        .clip(RoundedCornerShape(37.dp))
-                        .background(Color(0xFFE8E8E8)),
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF2F2F2))
+                        .border(1.dp, Color(0xFF8E8E8E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = Color.Black,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(31.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.weight(1f, fill = true))
 
                 Text(
                     text = title,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    fontSize = 14.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
                 )
                 Text(
                     text = subtitle,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    fontSize = 14.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ArrowNavButton(
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = CircleShape,
+        color = if (enabled) Color.Black.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.28f),
+        border = BorderStroke(
+            1.dp,
+            if (enabled) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.35f)
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (enabled) Color.White else Color.White.copy(alpha = 0.35f),
+            modifier = Modifier.padding(8.dp)
+        )
+    }
+}
+
+@Composable
+fun HomeBottomNavBar(
+    modifier: Modifier = Modifier,
+    onHomeClick: () -> Unit,
+    onLearnClick: () -> Unit,
+    onVisualizeClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    val barShape = RoundedCornerShape(56.dp)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth(0.9f)
+            .height(100.dp)
+            .shadow(
+                elevation = 28.dp,
+                shape = barShape,
+                ambientColor = Color.Black.copy(alpha = 0.85f),
+                spotColor = Color.Black.copy(alpha = 0.85f)
+            )
+            .clip(barShape)
+            .background(Color.Transparent),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = com.algoviz.plus.R.drawable.bottom_nav_bar),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 22.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                onClick = onHomeClick,
+                shape = CircleShape,
+                color = Color.Transparent,
+                modifier = Modifier.size(70.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Image(
+                        painter = painterResource(id = com.algoviz.plus.R.drawable.home_screen_icon),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.Home,
+                        contentDescription = "Home",
+                        tint = Color.Black,
+                        modifier = Modifier.size(31.dp)
+                    )
+                }
+            }
+
+            Surface(
+                onClick = onLearnClick,
+                shape = CircleShape,
+                color = Color.Transparent,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.BarChart,
+                    contentDescription = "Learn",
+                    tint = Color(0xFF9EA1A8),
+                    modifier = Modifier
+                        .size(38.dp)
+                        .padding(7.dp)
+                )
+            }
+
+            Surface(
+                onClick = onVisualizeClick,
+                shape = CircleShape,
+                color = Color.Transparent,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = "Visualize",
+                    tint = Color(0xFF9EA1A8),
+                    modifier = Modifier
+                        .size(38.dp)
+                        .padding(7.dp)
+                )
+            }
+
+            Surface(
+                onClick = onProfileClick,
+                shape = CircleShape,
+                color = Color.Transparent,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = "Profile",
+                    tint = Color(0xFF9EA1A8),
+                    modifier = Modifier
+                        .size(38.dp)
+                        .padding(7.dp)
                 )
             }
         }
@@ -332,7 +499,7 @@ private fun QuickActionCard(
 }
 
 @Composable
-private fun TopicCard(
+fun TopicCard(
     icon: ImageVector,
     title: String,
     description: String,
@@ -405,7 +572,7 @@ private fun TopicCard(
 }
 
 @Composable
-private fun AppLogo(
+fun AppLogo(
     size: Dp = 40.dp,
     modifier: Modifier = Modifier
 ) {
@@ -442,108 +609,205 @@ private fun AppLogo(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun ChangePasswordDialog(
-    onDismiss: () -> Unit,
-    onChangePassword: (String, String) -> Unit,
-    isLoading: Boolean
+fun HomeScreen(
+    onProfileClick: () -> Unit,
+    onVisualize: () -> Unit = {},
+    onLearn: () -> Unit = {},
+    onStudyRooms: () -> Unit = {},
+    onHomeClick: () -> Unit = {},
+    learnViewModel: LearnViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmNewPassword by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Change Password",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White
-            )
-        },
-        text = {
-            Column {
-                PasswordTextField(
-                    value = currentPassword,
-                    onValueChange = {
-                        currentPassword = it
-                        errorMessage = null
-                    },
-                    label = "Current Password",
-                    imeAction = ImeAction.Next
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                PasswordTextField(
-                    value = newPassword,
-                    onValueChange = {
-                        newPassword = it
-                        errorMessage = null
-                    },
-                    label = "New Password",
-                    imeAction = ImeAction.Next
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                PasswordTextField(
-                    value = confirmNewPassword,
-                    onValueChange = {
-                        confirmNewPassword = it
-                        errorMessage = null
-                    },
-                    label = "Confirm New Password",
-                    imeAction = ImeAction.Done
-                )
-
-                if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Red
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            PrimaryButton(
-                text = "Change Password",
-                onClick = {
-                    when {
-                        currentPassword.isBlank() || newPassword.isBlank() || confirmNewPassword.isBlank() -> {
-                            errorMessage = "All fields are required"
-                        }
-
-                        newPassword != confirmNewPassword -> {
-                            errorMessage = "New passwords do not match"
-                        }
-
-                        newPassword.length < 6 -> {
-                            errorMessage = "Password must be at least 6 characters"
-                        }
-
-                        else -> {
-                            onChangePassword(currentPassword, newPassword)
-                        }
-                    }
-                },
-                enabled = !isLoading,
-                isLoading = isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoading) {
-                Text(
-                    text = "Cancel",
-                    color = Color(0xFF5EEAD4)
-                )
-            }
-        },
-        containerColor = Color(0xFF1A1344),
-        shape = RoundedCornerShape(16.dp)
+    val userProfile = profileViewModel.userProfile.collectAsState().value
+    val displayName = if (userProfile.username.isNotBlank()) userProfile.username else userProfile.email.substringBefore('@').ifBlank { "AlgoViz User" }
+    val scrollState = rememberScrollState()
+    val sheetCards = listOf(
+        SheetCardData(com.algoviz.plus.R.drawable.bg1, "DSA\n450 SHEETS"),
+        SheetCardData(com.algoviz.plus.R.drawable.bg2, "A2Z\nDSA SHEETS"),
+        SheetCardData(com.algoviz.plus.R.drawable.bg5, "NEETCODE\nROADMAP")
     )
+    val pagerState = rememberPagerState(pageCount = { sheetCards.size })
+    val scope = rememberCoroutineScope()
+
+    Scaffold(
+        containerColor = Color.Transparent
+    ) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = com.algoviz.plus.R.drawable.bg1),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.78f))
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(scrollState)
+                            .padding(PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp))
+                    ) {
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        WelcomeBanner(
+                            userName = displayName,
+                            dateText = "Oct 24",
+                            avatarUrl = userProfile.avatarUrl,
+                            onProfileClick = onProfileClick
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        LearningProgressCard(
+                            progress = 0.72f,
+                            streakText = "DAY 45 STREAK",
+                            problemText = "128/180 PROBLEMS"
+                        )
+
+                        Spacer(modifier = Modifier.height(30.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "QuickActions",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "VIEW ALL",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.0.sp,
+                                color = Color.White.copy(alpha = 0.95f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            QuickActionCard(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .scale(0.92f),
+                                icon = Icons.Outlined.PlayArrow,
+                                title = "Visualize",
+                                subtitle = "Algorithms",
+                                onClick = onVisualize
+                            )
+                            QuickActionCard(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .scale(0.92f),
+                                icon = Icons.Outlined.Groups,
+                                title = "Study",
+                                subtitle = "Rooms",
+                                isRightCard = true,
+                                onClick = onStudyRooms
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            QuickActionCard(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .scale(0.92f),
+                                icon = Icons.AutoMirrored.Outlined.MenuBook,
+                                title = "Learn",
+                                subtitle = "Concepts",
+                                onClick = onLearn
+                            )
+                            QuickActionCard(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .scale(0.92f),
+                                icon = Icons.Outlined.Person,
+                                title = "Profile",
+                                subtitle = "Settings",
+                                isRightCard = true,
+                                onClick = onProfileClick
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(30.dp))
+
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 42.dp),
+                            pageSpacing = 10.dp
+                        ) { page ->
+                            val card = sheetCards[page]
+                            DashboardSheetCard(
+                                modifier = Modifier.fillMaxWidth(0.9f),
+                                backgroundRes = card.backgroundRes,
+                                title = card.title
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ArrowNavButton(
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                enabled = pagerState.currentPage > 0,
+                                onClick = {
+                                    if (pagerState.currentPage > 0) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                        }
+                                    }
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            ArrowNavButton(
+                                icon = Icons.AutoMirrored.Filled.ArrowForward,
+                                enabled = pagerState.currentPage < sheetCards.lastIndex,
+                                onClick = {
+                                    if (pagerState.currentPage < sheetCards.lastIndex) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+
+            }
+        }
+    }
 }

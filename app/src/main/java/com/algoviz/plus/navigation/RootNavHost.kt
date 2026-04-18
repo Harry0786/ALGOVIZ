@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,6 +48,7 @@ import com.algoviz.plus.ui.home.HomeScreen
 import com.algoviz.plus.ui.learn.LearnScreen
 import com.algoviz.plus.ui.profile.ProfileEditScreen
 import com.algoviz.plus.ui.profile.ProfileScreen
+import com.algoviz.plus.ui.profile.ProfileViewModel
 import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
 import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
 import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
@@ -66,16 +68,21 @@ private const val ROUTE_VISUALIZATION = "visualization"
 private const val ROUTE_CHAT_PATTERN = "$ROUTE_CHAT/{roomId}"
 private const val ROUTE_VISUALIZATION_PATTERN = "$ROUTE_VISUALIZATION/{algorithmId}"
 private const val DEFAULT_ALGORITHM_ID = "bubble_sort"
+private const val UNAUTH_REDIRECT_GRACE_MS = 1200L
 
 @Composable
 fun RootNavHost(
     authViewModel: AuthViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel(),
     isPasswordResetLink: Boolean = false
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
+    val isOnboardingCompleted by profileViewModel.isOnboardingCompleted.collectAsStateWithLifecycle()
+    val latestAuthState by rememberUpdatedState(authState)
     var splashFinished by remember { mutableStateOf(false) }
     var pendingResetFlow by remember { mutableStateOf(isPasswordResetLink) }
 
@@ -85,16 +92,23 @@ fun RootNavHost(
         splashFinished = true
     }
 
-    val showSplash = !splashFinished || authState is AuthUiState.Idle || authState is AuthUiState.Loading
+    val showSplash = !splashFinished || authState is AuthUiState.Loading
+    val hasProfileSnapshot = userProfile.email != "user@algoviz.com" ||
+        userProfile.name != "AlgoViz User" ||
+        userProfile.username.isNotBlank() ||
+        userProfile.phoneNumber.isNotBlank() ||
+        !userProfile.avatarUrl.isNullOrBlank()
+    val isProfileComplete = userProfile.name.isNotBlank() &&
+        userProfile.name != "AlgoViz User" &&
+        userProfile.username.isNotBlank()
 
-    // Determine start destination based on auth state
-    val startDestination = when (authState) {
-        is AuthUiState.Authenticated -> ROUTE_MAIN
-        else -> AuthRoute.AuthGraph.route
+    // Keep NavHost start destination stable to avoid graph recreation and ViewModel clearing.
+    val startDestination = remember {
+        if (authState is AuthUiState.Authenticated) ROUTE_MAIN else AuthRoute.AuthGraph.route
     }
 
     // Handle navigation based on auth state changes
-    LaunchedEffect(authState, showSplash, currentRoute) {
+    LaunchedEffect(authState, showSplash, currentRoute, isOnboardingCompleted) {
         if (showSplash || currentRoute == null) return@LaunchedEffect
 
         when (authState) {
@@ -105,6 +119,13 @@ fun RootNavHost(
                         navController.navigate(AuthRoute.ResetPassword.route) {
                             launchSingleTop = true
                         }
+                    }
+                } else if (!isOnboardingCompleted && hasProfileSnapshot && !isProfileComplete && currentRoute != ROUTE_PROFILE_EDIT) {
+                    navController.navigate(ROUTE_PROFILE_EDIT) {
+                        popUpTo(AuthRoute.AuthGraph.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 } else if (currentRoute !in setOf(
                         ROUTE_MAIN,
@@ -137,6 +158,12 @@ fun RootNavHost(
                         ROUTE_CHAT_PATTERN,
                         ROUTE_VISUALIZATION_PATTERN
                     )) {
+                    // Avoid tearing down protected destinations on transient auth-state blips.
+                    delay(UNAUTH_REDIRECT_GRACE_MS)
+                    if (latestAuthState !is AuthUiState.Unauthenticated) {
+                        return@LaunchedEffect
+                    }
+
                     navController.navigate(AuthRoute.AuthGraph.route) {
                         popUpTo(ROUTE_MAIN) {
                             inclusive = true
@@ -260,8 +287,41 @@ fun RootNavHost(
                 }
 
                 composable(ROUTE_PROFILE_EDIT) {
+                    val onboardingEntryMode = remember { !isOnboardingCompleted }
                     ProfileEditScreen(
-                        onBackClick = { navController.popBackStack() }
+                        isFirstTimeOnboarding = onboardingEntryMode,
+                        onSavedClick = {
+                            if (onboardingEntryMode) {
+                                navController.navigate(ROUTE_MAIN) {
+                                    popUpTo(ROUTE_PROFILE_EDIT) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } else {
+                                val popped = navController.popBackStack()
+                                if (!popped && isProfileComplete) {
+                                    navController.navigate(ROUTE_MAIN) {
+                                        popUpTo(ROUTE_PROFILE_EDIT) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        },
+                        onBackClick = {
+                            if (onboardingEntryMode) {
+                                navController.navigate(ROUTE_MAIN) {
+                                    popUpTo(ROUTE_PROFILE_EDIT) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } else {
+                                val popped = navController.popBackStack()
+                                if (!popped && isProfileComplete) {
+                                    navController.navigate(ROUTE_MAIN) {
+                                        popUpTo(ROUTE_PROFILE_EDIT) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
             }

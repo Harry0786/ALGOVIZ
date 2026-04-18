@@ -34,6 +34,9 @@ object SupabaseModule {
             install(Auth) {
                 scheme = "algovizplus"
                 host = "password-reset"
+                autoLoadFromStorage = true
+                autoSaveToStorage = true
+                alwaysAutoRefresh = true
             }
             install(Postgrest)
             install(Storage)

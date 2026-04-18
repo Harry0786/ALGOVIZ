@@ -69,7 +69,9 @@ create table if not exists public.app_config (
 create table if not exists public.user_profiles (
     user_id text primary key,
     name text not null default '',
+    username text not null default '',
     email text not null default '',
+    phone_no text not null default '',
     bio text not null default '',
     avatar_url text,
     study_goal text not null default '',
@@ -77,3 +79,9 @@ create table if not exists public.user_profiles (
     avatar_color_index integer not null default 0,
     updated_at bigint
 );
+
+alter table public.user_profiles
+    add column if not exists phone_no text not null default '';
+
+alter table public.user_profiles
+    add column if not exists username text not null default '';

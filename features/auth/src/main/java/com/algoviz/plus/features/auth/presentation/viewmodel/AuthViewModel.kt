@@ -6,6 +6,7 @@ import com.algoviz.plus.core.datastore.PreferencesManager
 import com.algoviz.plus.features.auth.domain.usecase.ChangePasswordUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserEmailUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GetCurrentUserUseCase
+import com.algoviz.plus.features.auth.domain.usecase.GetIsGoogleSignInUserUseCase
 import com.algoviz.plus.features.auth.domain.usecase.GoogleSignInUseCase
 import com.algoviz.plus.features.auth.domain.usecase.LoginUseCase
 import com.algoviz.plus.features.auth.domain.usecase.LogoutUseCase
@@ -17,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -32,11 +34,15 @@ class AuthViewModel @Inject constructor(
     private val updatePasswordUseCase: UpdatePasswordUseCase,
     private val changePasswordUseCase: ChangePasswordUseCase,
     private val getCurrentUserEmailUseCase: GetCurrentUserEmailUseCase,
+    private val getIsGoogleSignInUserUseCase: GetIsGoogleSignInUserUseCase,
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    private val _isGoogleSignInUser = MutableStateFlow(false)
+    val isGoogleSignInUser: StateFlow<Boolean> = _isGoogleSignInUser.asStateFlow()
 
     init {
         observeAuthState()
@@ -45,10 +51,16 @@ class AuthViewModel @Inject constructor(
     private fun observeAuthState() {
         viewModelScope.launch {
             getCurrentUserUseCase().collect { user ->
+                if (user != null) {
+                    syncProfileCacheForCurrentUser(user)
+                }
+
                 _uiState.value = when {
                     user == null -> AuthUiState.Unauthenticated
                     else -> AuthUiState.Authenticated(user)
                 }
+                // Update Google sign-in user flag
+                _isGoogleSignInUser.value = getIsGoogleSignInUserUseCase()
             }
         }
     }
@@ -58,10 +70,6 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             loginUseCase(email, password)
                 .onSuccess { user ->
-                    // Save email to DataStore
-                    user.email?.let { userEmail ->
-                        preferencesManager.saveProfileEmail(userEmail)
-                    }
                     _uiState.value = AuthUiState.Authenticated(user)
                 }
                 .onFailure { error ->
@@ -81,8 +89,6 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             registerUseCase(email, password)
                 .onSuccess { result ->
-                    preferencesManager.saveProfileEmail(email)
-
                     result.user?.let { user ->
                         preferencesManager.saveProfileEmail(user.email)
                         _uiState.value = AuthUiState.Authenticated(user)
@@ -110,10 +116,6 @@ class AuthViewModel @Inject constructor(
             _uiState.value = AuthUiState.Loading
             googleSignInUseCase(idToken)
                 .onSuccess { user ->
-                    // Save email to DataStore
-                    user.email?.let { userEmail ->
-                        preferencesManager.saveProfileEmail(userEmail)
-                    }
                     _uiState.value = AuthUiState.Authenticated(user)
                 }
                 .onFailure { error ->
@@ -140,7 +142,14 @@ class AuthViewModel @Inject constructor(
             _uiState.value is AuthUiState.EmailVerificationRequired ||
             _uiState.value is AuthUiState.PasswordResetEmailSent ||
             _uiState.value is AuthUiState.PasswordChanged) {
-            _uiState.value = AuthUiState.Idle
+            viewModelScope.launch {
+                val user = getCurrentUserUseCase().firstOrNull()
+                _uiState.value = if (user == null) {
+                    AuthUiState.Unauthenticated
+                } else {
+                    AuthUiState.Authenticated(user)
+                }
+            }
         }
     }
     
@@ -187,5 +196,17 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = AuthUiState.Error(error.message ?: "Failed to change password")
                 }
         }
+    }
+
+    private suspend fun syncProfileCacheForCurrentUser(user: com.algoviz.plus.features.auth.domain.model.User) {
+        val previousUserId = preferencesManager.userId.firstOrNull().orEmpty()
+        val hasAccountSwitched = previousUserId.isBlank() || previousUserId != user.id
+
+        if (hasAccountSwitched) {
+            preferencesManager.clearProfileCacheForAccountSwitch()
+        }
+
+        preferencesManager.saveUserId(user.id)
+        preferencesManager.saveProfileEmail(user.email)
     }
 }

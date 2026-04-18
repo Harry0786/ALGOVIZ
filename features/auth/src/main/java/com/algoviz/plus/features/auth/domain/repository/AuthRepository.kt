@@ -29,4 +29,6 @@ interface AuthRepository {
     suspend fun updatePassword(newPassword: String): Result<Unit>
     
     fun getCurrentUserEmail(): String?
+
+    fun isGoogleSignInUser(): Boolean
 }

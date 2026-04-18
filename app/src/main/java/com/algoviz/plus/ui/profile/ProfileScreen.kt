@@ -29,14 +29,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -70,6 +74,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.R
 import com.algoviz.plus.features.auth.presentation.state.AuthUiState
@@ -86,6 +91,7 @@ fun ProfileScreen(
 ) {
     val userProfile by profileViewModel.userProfile.collectAsState()
     val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val isGoogleSignInUser by authViewModel.isGoogleSignInUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -160,37 +166,33 @@ fun ProfileScreen(
 
             ProfileAvatarHeader(
                 name = userProfile.name,
-                email = userProfile.email
+                username = userProfile.username,
+                email = userProfile.email,
+                phoneNumber = userProfile.phoneNumber,
+                avatarUrl = userProfile.avatarUrl
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             ProfileActionCard(
                 icon = Icons.Outlined.Person,
-                title = "Profile",
+                title = "Edit Profile",
                 subtitle = "ACCOUNT DETAILS",
                 onClick = onEditProfileClick
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            ProfileActionCard(
-                icon = Icons.Outlined.Lock,
-                title = "Change Password",
-                subtitle = "SECURITY SETTINGS",
-                onClick = { showChangePasswordDialog = true }
-            )
+            if (!isGoogleSignInUser) {
+                ProfileActionCard(
+                    icon = Icons.Outlined.Lock,
+                    title = "Change Password",
+                    subtitle = "SECURITY SETTINGS",
+                    onClick = { showChangePasswordDialog = true }
+                )
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            ProfileActionCard(
-                icon = Icons.Outlined.Favorite,
-                title = "Favorites",
-                subtitle = "SAVED ALGORITHMS",
-                onClick = { }
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             ProfileActionCard(
                 icon = Icons.Outlined.Share,
@@ -233,6 +235,18 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Text(
+                text = "VERSION ${BuildConfig.VERSION_NAME.substringBefore('-')}",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                fontSize = 12.sp,
+                color = Color(0xFFB8B8BA),
+                letterSpacing = 2.2.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             HorizontalDivider(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -267,7 +281,10 @@ fun ProfileScreen(
 @Composable
 private fun ProfileAvatarHeader(
     name: String,
-    email: String
+    username: String,
+    email: String,
+    phoneNumber: String,
+    avatarUrl: String?
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -281,35 +298,102 @@ private fun ProfileAvatarHeader(
                 .border(4.dp, Color(0xFFBFC1C7), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.user),
-                contentDescription = "Profile image",
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            if (!avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = "Profile image",
+                    placeholder = painterResource(id = R.drawable.user),
+                    error = painterResource(id = R.drawable.user),
+                    fallback = painterResource(id = R.drawable.user),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.user),
+                    contentDescription = "Profile image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
+        // Name as primary identifier
         Text(
-            text = name,
+            text = name.ifBlank { "AlgoViz User" },
             color = Color.White,
-            fontSize = 25.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.2).sp,
-            lineHeight = 28.sp,
-            maxLines = 1
+            letterSpacing = (-0.3).sp,
+            lineHeight = 32.sp
         )
 
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        Text(
-            text = email,
-            color = Color(0xFF9A9A9C),
-            fontSize = 15.sp,
-            maxLines = 1
-        )
+        // Username below name
+        if (username.isNotBlank()) {
+            Text(
+                text = "@$username",
+                color = Color(0xFFB8BAC2),
+                fontSize = 14.sp,
+                maxLines = 1
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Email on its own centered line
+        if (email.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MailOutline,
+                    contentDescription = "Email",
+                    tint = Color(0xFF9A9A9C),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = email,
+                    color = Color(0xFFB8BAC2),
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
+        }
+
+        // Phone on its own centered line
+        if (phoneNumber.isNotBlank()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Phone,
+                    contentDescription = "Phone",
+                    tint = Color(0xFF9A9A9C),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = phoneNumber,
+                    color = Color(0xFFB8BAC2),
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 

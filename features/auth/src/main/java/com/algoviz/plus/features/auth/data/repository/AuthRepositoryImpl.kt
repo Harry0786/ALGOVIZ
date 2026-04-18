@@ -136,6 +136,10 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getCurrentUserEmail(): String? {
         return dataSource.getCurrentUserEmail()
     }
+
+    override fun isGoogleSignInUser(): Boolean {
+        return dataSource.isGoogleSignInUser()
+    }
     
     private fun isValidEmail(email: String): Boolean {
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
