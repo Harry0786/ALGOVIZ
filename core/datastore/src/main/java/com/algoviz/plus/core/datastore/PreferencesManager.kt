@@ -128,16 +128,6 @@ class PreferencesManager @Inject constructor(
         preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_PHONE_NUMBER)] ?: ""
     }
 
-    suspend fun saveProfileBio(bio: String) {
-        dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO)] = bio
-        }
-    }
-
-    val profileBio: Flow<String> = dataStore.data.map { preferences ->
-        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO)] ?: "Learning algorithms and data structures"
-    }
-
     suspend fun saveProfileAvatarUrl(avatarUrl: String) {
         dataStore.edit { preferences ->
             preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL)] = avatarUrl
@@ -146,26 +136,6 @@ class PreferencesManager @Inject constructor(
 
     val profileAvatarUrl: Flow<String> = dataStore.data.map { preferences ->
         preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL)] ?: ""
-    }
-
-    suspend fun saveProfileStudyGoal(studyGoal: String) {
-        dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL)] = studyGoal
-        }
-    }
-
-    val profileStudyGoal: Flow<String> = dataStore.data.map { preferences ->
-        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL)] ?: "Master algorithms"
-    }
-
-    suspend fun saveProfileSkillLevel(skillLevel: String) {
-        dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL)] = skillLevel
-        }
-    }
-
-    val profileSkillLevel: Flow<String> = dataStore.data.map { preferences ->
-        preferences[stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL)] ?: "Beginner"
     }
 
     suspend fun saveProfileAvatarColorIndex(colorIndex: Int) {
@@ -194,10 +164,7 @@ class PreferencesManager @Inject constructor(
             preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_EMAIL))
             preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_USERNAME))
             preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_PHONE_NUMBER))
-            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_BIO))
             preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_URL))
-            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_STUDY_GOAL))
-            preferences.remove(stringPreferencesKey(PreferenceKeys.KEY_PROFILE_SKILL_LEVEL))
             preferences.remove(intPreferencesKey(PreferenceKeys.KEY_PROFILE_AVATAR_COLOR_INDEX))
             preferences.remove(booleanPreferencesKey(PreferenceKeys.KEY_PROFILE_ONBOARDING_COMPLETED))
         }

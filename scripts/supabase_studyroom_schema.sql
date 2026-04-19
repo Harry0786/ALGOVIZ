@@ -72,10 +72,7 @@ create table if not exists public.user_profiles (
     username text not null default '',
     email text not null default '',
     phone_no text not null default '',
-    bio text not null default '',
     avatar_url text,
-    study_goal text not null default '',
-    skill_level text not null default '',
     avatar_color_index integer not null default 0,
     updated_at bigint
 );

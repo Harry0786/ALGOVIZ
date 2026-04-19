@@ -30,10 +30,7 @@ object PreferenceKeys {
     const val KEY_PROFILE_EMAIL = "profile_email"
     const val KEY_PROFILE_USERNAME = "profile_username"
     const val KEY_PROFILE_PHONE_NUMBER = "profile_phone_number"
-    const val KEY_PROFILE_BIO = "profile_bio"
     const val KEY_PROFILE_AVATAR_URL = "profile_avatar_url"
-    const val KEY_PROFILE_STUDY_GOAL = "profile_study_goal"
-    const val KEY_PROFILE_SKILL_LEVEL = "profile_skill_level"
     const val KEY_PROFILE_AVATAR_COLOR_INDEX = "profile_avatar_color_index"
     const val KEY_PROFILE_ONBOARDING_COMPLETED = "profile_onboarding_completed"
 }

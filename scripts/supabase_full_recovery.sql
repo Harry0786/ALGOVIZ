@@ -72,10 +72,7 @@ create table if not exists public.user_profiles (
     username text not null default '',
     email text not null default '',
     phone_no text not null default '',
-    bio text not null default '',
     avatar_url text,
-    study_goal text not null default '',
-    skill_level text not null default '',
     avatar_color_index integer not null default 0,
     updated_at bigint
 );
@@ -106,10 +103,7 @@ insert into public.user_profiles (
     username,
     email,
     phone_no,
-    bio,
     avatar_url,
-    study_goal,
-    skill_level,
     avatar_color_index,
     updated_at
 )
@@ -137,10 +131,7 @@ select
         coalesce(u.phone, ''),
         ''
     ) as phone_no,
-    coalesce(u.raw_user_meta_data ->> 'bio', '') as bio,
     nullif(coalesce(u.raw_user_meta_data ->> 'avatarUrl', ''), '') as avatar_url,
-    coalesce(u.raw_user_meta_data ->> 'studyGoal', '') as study_goal,
-    coalesce(u.raw_user_meta_data ->> 'skillLevel', '') as skill_level,
     coalesce((u.raw_user_meta_data ->> 'avatarColorIndex')::integer, 0) as avatar_color_index,
     extract(epoch from now())::bigint as updated_at
 from auth.users u
@@ -150,10 +141,7 @@ set
     username = excluded.username,
     email = excluded.email,
     phone_no = excluded.phone_no,
-    bio = excluded.bio,
     avatar_url = excluded.avatar_url,
-    study_goal = excluded.study_goal,
-    skill_level = excluded.skill_level,
     avatar_color_index = excluded.avatar_color_index,
     updated_at = excluded.updated_at;
 

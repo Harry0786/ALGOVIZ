@@ -25,9 +25,6 @@ class ProfileViewModel @Inject constructor(
         const val DEFAULT_USERNAME = ""
         const val DEFAULT_EMAIL = "user@algoviz.com"
         const val DEFAULT_PHONE_NUMBER = ""
-        const val DEFAULT_BIO = "Learning algorithms and data structures"
-        const val DEFAULT_STUDY_GOAL = "Master algorithms"
-        const val DEFAULT_SKILL_LEVEL = "Beginner"
     }
     
     private val _userProfile = MutableStateFlow(UserProfile())
@@ -58,10 +55,7 @@ class ProfileViewModel @Inject constructor(
                     preferencesManager.profileUsername,
                     preferencesManager.profileEmail,
                     preferencesManager.profilePhoneNumber,
-                    preferencesManager.profileBio,
                     preferencesManager.profileAvatarUrl,
-                    preferencesManager.profileStudyGoal,
-                    preferencesManager.profileSkillLevel,
                     preferencesManager.profileAvatarColorIndex
                 )
             ) { values ->
@@ -70,11 +64,8 @@ class ProfileViewModel @Inject constructor(
                     username = values[1] as String,
                     email = values[2] as String,
                     phoneNumber = values[3] as String,
-                    bio = values[4] as String,
-                    avatarUrl = values[5] as String,
-                    studyGoal = values[6] as String,
-                    skillLevel = values[7] as String,
-                    avatarColorIndex = values[8] as Int
+                    avatarUrl = values[4] as String,
+                    avatarColorIndex = values[5] as Int
                 )
             }.collect { profile ->
                 _userProfile.value = profile
@@ -101,16 +92,10 @@ class ProfileViewModel @Inject constructor(
     }
     
     fun updateProfile(
-        name: String? = null,
-        bio: String? = null,
-        studyGoal: String? = null,
-        skillLevel: String? = null
+        name: String? = null
     ) {
         viewModelScope.launch {
             name?.let { preferencesManager.saveProfileName(it) }
-            bio?.let { preferencesManager.saveProfileBio(it) }
-            studyGoal?.let { preferencesManager.saveProfileStudyGoal(it) }
-            skillLevel?.let { preferencesManager.saveProfileSkillLevel(it) }
         }
     }
     
@@ -210,10 +195,7 @@ class ProfileViewModel @Inject constructor(
             preferencesManager.saveProfileUsername("")
             preferencesManager.saveProfileEmail("user@algoviz.com")
             preferencesManager.saveProfilePhoneNumber("")
-            preferencesManager.saveProfileBio("Learning algorithms and data structures")
             preferencesManager.saveProfileAvatarUrl("")
-            preferencesManager.saveProfileStudyGoal("Master algorithms")
-            preferencesManager.saveProfileSkillLevel("Beginner")
         }
     }
 
@@ -222,10 +204,7 @@ class ProfileViewModel @Inject constructor(
         preferencesManager.saveProfileUsername(profile.username)
         preferencesManager.saveProfileEmail(profile.email)
         preferencesManager.saveProfilePhoneNumber(profile.phoneNumber)
-        preferencesManager.saveProfileBio(profile.bio)
         preferencesManager.saveProfileAvatarUrl(profile.avatarUrl ?: "")
-        preferencesManager.saveProfileStudyGoal(profile.studyGoal)
-        preferencesManager.saveProfileSkillLevel(profile.skillLevel)
         preferencesManager.saveProfileAvatarColorIndex(profile.avatarColorIndex)
     }
 

@@ -35,10 +35,7 @@ class ProfileRemoteDataSource @Inject constructor(
         val username: String = "",
         val email: String,
         @SerialName("phone_no") val phoneNo: String = "",
-        val bio: String,
         @SerialName("avatar_url") val avatarUrl: String? = null,
-        @SerialName("study_goal") val studyGoal: String,
-        @SerialName("skill_level") val skillLevel: String,
         @SerialName("avatar_color_index") val avatarColorIndex: Int,
         @SerialName("updated_at") val updatedAt: Long
     )
@@ -246,10 +243,7 @@ class ProfileRemoteDataSource @Inject constructor(
                         put("username", profile.username)
                         put("profileEmail", profile.email)
                         put("phoneNumber", profile.phoneNumber)
-                        put("bio", profile.bio)
                         put("avatarUrl", normalizedAvatarUrl ?: "")
-                        put("studyGoal", profile.studyGoal)
-                        put("skillLevel", profile.skillLevel)
                         put("avatarColorIndex", profile.avatarColorIndex)
                         put("updatedAt", updatedAt)
                     }
@@ -264,10 +258,7 @@ class ProfileRemoteDataSource @Inject constructor(
                 put("username", profile.username)
                 put("email", profile.email)
                 put("phone_no", profile.phoneNumber)
-                put("bio", profile.bio)
                 put("avatar_url", normalizedAvatarUrl ?: "")
-                put("study_goal", profile.studyGoal)
-                put("skill_level", profile.skillLevel)
                 put("avatar_color_index", profile.avatarColorIndex)
                 put("updated_at", updatedAt)
             }
@@ -320,10 +311,7 @@ class ProfileRemoteDataSource @Inject constructor(
                         },
                         email = rowProfile.email.ifBlank { user.email ?: "user@algoviz.com" },
                         phoneNumber = rowProfile.phoneNo,
-                        bio = rowProfile.bio.ifBlank { "Learning algorithms and data structures" },
                         avatarUrl = normalizeAvatarUrl(rowProfile.avatarUrl),
-                        studyGoal = rowProfile.studyGoal.ifBlank { "Master algorithms" },
-                        skillLevel = rowProfile.skillLevel.ifBlank { "Beginner" },
                         avatarColorIndex = rowProfile.avatarColorIndex
                     )
                 )
@@ -355,10 +343,7 @@ class ProfileRemoteDataSource @Inject constructor(
                     metadata.string("email", user.email ?: "user@algoviz.com")
                 ),
                 phoneNumber = metadata.string("phoneNumber", metadata.string("phone", "")),
-                bio = metadata.string("bio", "Learning algorithms and data structures"),
                 avatarUrl = normalizeAvatarUrl(metadata["avatarUrl"]?.jsonPrimitive?.content),
-                studyGoal = metadata.string("studyGoal", "Master algorithms"),
-                skillLevel = metadata.string("skillLevel", "Beginner"),
                 avatarColorIndex = metadata["avatarColorIndex"]?.jsonPrimitive?.intOrNull ?: 0
             )
 
