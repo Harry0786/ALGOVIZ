@@ -1,92 +1,141 @@
-# AlgoViz+ - Android Application
+# AlgoViz+
 
-Production-grade Android application for algorithm learning platform.
+AlgoViz+ is an Android app for learning and practicing algorithms with real-time, collaborative study-room features.
+
+Current implementation includes:
+- Supabase-backed authentication (email/password + Google)
+- Study rooms, room member presence, and chat flows
+- Modular Clean Architecture foundation for continued feature expansion
 
 ## Tech Stack
 
 - Kotlin 1.9.22
-- Jetpack Compose with Material 3
+- Android Gradle Plugin 8.3.0
+- Jetpack Compose + Material 3
 - MVVM + Clean Architecture
-- Hilt for DI
+- Hilt dependency injection
 - Coroutines + Flow
 - Retrofit + OkHttp
 - Room + DataStore
-- Supabase integration ready
+- Supabase Kotlin SDK (GoTrue, PostgREST, Storage, Realtime)
+- Firebase Messaging + Analytics
 
-## Module Structure
+## Project Structure
 
-```
-app/                    - Application module
-core/
-  ├── common/          - Shared utilities, constants, result types
-  ├── ui/              - Base UI components, ViewModel
-  ├── designsystem/    - Material 3 theme, colors, typography
-  ├── network/         - Retrofit, OkHttp, interceptors
-  ├── database/        - Room database
-  └── datastore/       - DataStore preferences
-data/                  - Repository implementations
-domain/                - Use cases, repository interfaces
-features/              - Feature modules (to be implemented)
-```
+Main directories:
+
+- app: Android application module and navigation wiring
+- core/common: shared utilities, models, and result/error primitives
+- core/ui: base UI components and shared presentation helpers
+- core/designsystem: theme, typography, and design tokens
+- core/network: HTTP client and API/network abstractions
+- core/database: Room database layer
+- core/datastore: preference storage
+- data: repository and datasource implementations
+- domain: use cases and repository contracts
+- features: feature modules
+- scripts: Supabase SQL utilities and helper scripts
 
 ## Requirements
 
 - JDK 17
-- Android Studio Hedgehog | 2023.1.1+
+- Android Studio Hedgehog 2023.1.1 or newer
 - Android SDK 34
-- Gradle 8.6
+- Gradle wrapper (included)
 
-## Setup
+Android build config (from app module):
+- minSdk: 26
+- targetSdk: 34
+- compileSdk: 34
 
-1. Copy `local.properties.template` to `local.properties`
-2. Add SDK path and API keys
-3. Sync Gradle
-4. Build project
+## Local Setup
 
-## Supabase Data Schema
+1. Copy local.properties.template to local.properties
+2. Set your SDK path in local.properties
+3. Add required runtime keys in local.properties
+4. Sync Gradle and build
 
-- Study-room and config/profile schema: `scripts/supabase_studyroom_schema.sql`
+Required local.properties entries:
 
-## MCP Setup (Supabase)
+- sdk.dir=... (local Android SDK path)
+- SUPABASE_URL=...
+- SUPABASE_KEY=... (anon/publishable key)
+- GOOGLE_WEB_CLIENT_ID=...
 
-- VS Code MCP config added: `.vscode/mcp.json`
-- Requires environment variables:
-  - `SUPABASE_PROJECT_REF`
-  - `SUPABASE_ACCESS_TOKEN`
+Optional entries:
+
+- SUPABASE_URL_DEBUG, SUPABASE_URL_STAGING, SUPABASE_URL_RELEASE
+- RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+- SUPABASE_SERVICE_ROLE_KEY (scripts/admin-only workflows)
+
+Security notes:
+
+- Never commit local.properties
+- Never commit signing keystores or service role secrets
+- Use local.properties.template as the only committed template
 
 ## Build Variants
 
-- **debug** - Development with verbose logging
-- **staging** - Pre-production testing
-- **release** - Production build
+- debug: debuggable, applicationId suffix .debug
+- staging: debuggable + minified/shrunk, suffix .staging
+- release: minified/shrunk, optional signing from local properties
 
-## Gradle Tasks
+## Common Commands
 
-```bash
-./gradlew assembleDebug      # Build debug APK
-./gradlew assembleRelease    # Build release APK
-./gradlew test               # Run unit tests
-./gradlew detekt             # Run code analysis
-./gradlew ktlintCheck        # Check code style
-```
+From repository root on Windows:
 
-## Architecture
+- .\gradlew.bat clean
+- .\gradlew.bat assembleDebug
+- .\gradlew.bat assembleStaging
+- .\gradlew.bat assembleRelease
+- .\gradlew.bat test
+- .\gradlew.bat detekt
+- .\gradlew.bat ktlintCheck
 
-Clean Architecture with MVVM pattern:
-- **Domain Layer**: Business logic, use cases
-- **Data Layer**: Repository implementations, data sources
-- **Presentation Layer**: ViewModels, UI components
+## Supabase Workflow
 
-## Next Steps
+Core SQL assets are under scripts:
 
-Feature modules ready for implementation:
-- Authentication
-- Home/Dashboard
-- Leaderboards
-- Study Rooms
-- Analytics
-- Profile
+- scripts/supabase_studyroom_schema.sql
+- scripts/supabase_full_recovery.sql
+- scripts/supabase_complete_audit_fix.sql
+- scripts/study_rooms_diagnostic.sql
+- scripts/fix_study_rooms_member_data.sql
 
----
+Recommended order for environment setup and recovery:
 
-**Status**: Supabase Runtime Complete
+1. Apply schema/base setup
+2. Apply recovery/audit fixes if needed
+3. Run diagnostics to validate consistency
+
+Related documentation:
+
+- AUTH_SETUP.md
+- SUPABASE_DEPLOYMENT_GUIDE.md
+- STUDYROOMS_TESTING_GUIDE.md
+- docs/archive (historical completion reports)
+
+## Architecture Notes
+
+The codebase follows Clean Architecture boundaries:
+
+- Domain: pure business use cases and contracts
+- Data: concrete repositories and remote/local datasource integration
+- Presentation: Compose screens and ViewModels
+
+This structure keeps feature logic testable and infrastructure-swappable.
+
+## Repository Hygiene
+
+The repository is configured to ignore generated and local-only artifacts including:
+
+- local.properties
+- keystores (*.jks)
+- IDE/cache/build output folders
+- JVM error/replay logs
+
+If you see these files locally, that is expected; they should remain untracked.
+
+## Status
+
+The project is actively maintained with Supabase-based runtime flows and cleaned repository structure. The README, setup template, and deployment/testing guides are aligned for onboarding and day-to-day development.
