@@ -15,10 +15,6 @@ bin/
 gen/
 out/
 release/
-!scripts/
-!scripts/release/
-!scripts/release/*.ps1
-!scripts/release/*.mjs
 
 # Gradle files
 .gradle/
@@ -47,10 +43,16 @@ render.experimental.xml
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
-*-firebase-adminsdk-*.json
 
 # Android Profiling
 *.hprof
+
+# JVM crash and replay artifacts
+hs_err_pid*.log
+replay_pid*.log
+
+# Local analysis exports
+search_results.csv
 
 # OS files
 .DS_Store
