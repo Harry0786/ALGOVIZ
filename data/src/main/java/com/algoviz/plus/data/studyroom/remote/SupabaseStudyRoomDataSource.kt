@@ -1,5 +1,6 @@
 ﻿package com.algoviz.plus.data.studyroom.remote
 
+import com.algoviz.plus.core.common.utils.UserIdentityUtils
 import com.algoviz.plus.data.studyroom.model.MessageDto
 import com.algoviz.plus.data.studyroom.model.RoomMemberDto
 import com.algoviz.plus.data.studyroom.model.StudyRoomDto
@@ -77,6 +78,15 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         @SerialName("last_seen_at") val lastSeenAt: Long
     )
 
+    @Serializable
+    private data class UserProfileAvatarRow(
+        @SerialName("user_id") val userId: String,
+        @SerialName("avatar_url") val avatarUrl: String? = null,
+        val name: String? = null,
+        val username: String? = null,
+        val email: String? = null
+    )
+
     private companion object {
         const val STALE_MEMBER_ONLINE_MS = 120_000L
         const val STALE_TYPING_MS = 5_000L
@@ -86,6 +96,14 @@ class SupabaseStudyRoomDataSource @Inject constructor(
     private val membersTable = supabaseClient.postgrest["study_room_members"]
     private val messagesTable = supabaseClient.postgrest["study_room_messages"]
     private val presenceTable = supabaseClient.postgrest["user_presence"]
+    private val userProfilesTable = supabaseClient.postgrest["user_profiles"]
+    private val supabaseBaseUrl: String by lazy {
+        runCatching { supabaseClient.supabaseUrl }
+            .getOrNull()
+            ?.trim()
+            ?.trimEnd('/')
+            .orEmpty()
+    }
 
     private fun StudyRoomRow.toDto(): StudyRoomDto = StudyRoomDto(
         id = id,
@@ -102,9 +120,10 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         isActive = isActive
     )
 
-    private fun RoomMemberRow.toDto(): RoomMemberDto = RoomMemberDto(
+    private fun RoomMemberRow.toDto(avatarUrl: String? = null): RoomMemberDto = RoomMemberDto(
         userId = userId,
         userName = userName,
+        avatarUrl = avatarUrl,
         joinedAt = joinedAt,
         isOnline = isOnline,
         lastSeenAt = lastSeenAt,
@@ -620,11 +639,26 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         val presenceByUserId = if (userIds.isEmpty()) {
             emptyMap()
         } else {
-            presenceTable.select {
-                filter {
-                    isIn("user_id", userIds)
-                }
-            }.decodeList<PresenceRow>().associateBy { it.userId }
+            runCatching {
+                presenceTable.select {
+                    filter {
+                        isIn("user_id", userIds)
+                    }
+                }.decodeList<PresenceRow>().associateBy { it.userId }
+            }.getOrElse { emptyMap() }
+        }
+
+        val profileByUserId = if (userIds.isEmpty()) {
+            emptyMap()
+        } else {
+            runCatching {
+                userProfilesTable.select {
+                    filter {
+                        isIn("user_id", userIds)
+                    }
+                }.decodeList<UserProfileAvatarRow>()
+                    .associateBy { it.userId }
+            }.getOrElse { emptyMap() }
         }
 
         val now = System.currentTimeMillis()
@@ -634,8 +668,18 @@ class SupabaseStudyRoomDataSource @Inject constructor(
             val presenceOnline = presence?.isOnline == true
             val presenceRecent = presence?.lastSeenAt?.let { now - it <= STALE_MEMBER_ONLINE_MS } == true
             val memberRecent = member.lastSeenAt?.let { now - it <= STALE_MEMBER_ONLINE_MS } == true
+            val profile = profileByUserId[member.userId]
+            val avatarUrl = UserIdentityUtils.normalizeAvatarUrl(
+                raw = profile?.avatarUrl,
+                supabaseUrl = supabaseBaseUrl
+            )
+            val resolvedName = profile?.name?.takeUnless { it.isNullOrBlank() }
+                ?: profile?.username?.takeUnless { it.isNullOrBlank() }
+                ?: profile?.email?.substringBefore('@')?.takeUnless { it.isNullOrBlank() }
+                ?: member.userName.ifBlank { "AlgoViz User" }
 
             member.copy(
+                userName = resolvedName,
                 isOnline = presenceOnline || member.isOnline || presenceRecent || memberRecent || typingFresh,
                 lastSeenAt = maxOf(
                     presence?.lastSeenAt ?: 0L,
@@ -644,7 +688,7 @@ class SupabaseStudyRoomDataSource @Inject constructor(
                 ).takeIf { it > 0L },
                 isTyping = typingFresh,
                 typingAt = if (typingFresh) member.typingAt else null
-            ).toDto()
+            ).toDto(avatarUrl)
         }.sortedBy { it.userName.lowercase() }
     }
 

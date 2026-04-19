@@ -1,6 +1,7 @@
 package com.algoviz.plus.ui.studyrooms.state
 
 import com.algoviz.plus.domain.model.StudyRoom
+import com.algoviz.plus.domain.model.RoomMember
 
 sealed class StudyRoomsUiState {
     data object Loading : StudyRoomsUiState()
@@ -9,7 +10,10 @@ sealed class StudyRoomsUiState {
         val myRooms: List<StudyRoom>,
         val selectedCategory: String? = null,
         val loadingRoomId: String? = null, // Room being joined/left
-        val unreadCounts: Map<String, Int> = emptyMap()
+        val unreadCounts: Map<String, Int> = emptyMap(),
+        val roomMembersByRoom: Map<String, List<RoomMember>> = emptyMap(),
+        val onlineFriends: List<RoomMember> = emptyList(),
+        val currentUserId: String? = null
     ) : StudyRoomsUiState()
     data class Error(val message: String) : StudyRoomsUiState()
 }

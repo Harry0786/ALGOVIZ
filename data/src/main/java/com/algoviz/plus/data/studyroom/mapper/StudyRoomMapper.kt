@@ -85,6 +85,7 @@ object StudyRoomMapper {
         return RoomMember(
             userId = dto.userId,
             userName = dto.userName,
+            avatarUrl = dto.avatarUrl,
             joinedAt = dto.joinedAt,
             isOnline = dto.isOnline,
             lastSeenAt = dto.lastSeenAt,
@@ -98,6 +99,7 @@ object StudyRoomMapper {
         return RoomMemberDto(
             userId = member.userId,
             userName = member.userName,
+            avatarUrl = member.avatarUrl,
             joinedAt = member.joinedAt,
             isOnline = member.isOnline,
             lastSeenAt = member.lastSeenAt,

@@ -29,6 +29,7 @@ enum class MessageType {
 data class RoomMember(
     val userId: String,
     val userName: String,
+    val avatarUrl: String? = null,
     val joinedAt: Long,
     val isOnline: Boolean = false,
     val lastSeenAt: Long? = null,

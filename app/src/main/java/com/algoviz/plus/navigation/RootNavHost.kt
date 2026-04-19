@@ -86,6 +86,23 @@ fun RootNavHost(
     var splashFinished by remember { mutableStateOf(false) }
     var pendingResetFlow by remember { mutableStateOf(isPasswordResetLink) }
 
+    val navigateBackToMain = {
+        if (!navController.popBackStack()) {
+            navController.navigate(ROUTE_MAIN) {
+                launchSingleTop = true
+                popUpTo(ROUTE_MAIN) { inclusive = true }
+            }
+        }
+    }
+
+    val navigateBackToStudyRooms = {
+        if (!navController.popBackStack()) {
+            navController.navigate(ROUTE_STUDY_ROOMS) {
+                launchSingleTop = true
+            }
+        }
+    }
+
     // Keep a short splash to avoid feeling delayed at startup.
     LaunchedEffect(Unit) {
         delay(MIN_SPLASH_DURATION_MS)
@@ -239,14 +256,14 @@ fun RootNavHost(
                             navController.navigate("$ROUTE_CHAT/$roomId")
                         },
                         onCreateRoomClick = { navController.navigate(ROUTE_CREATE_ROOM) },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = navigateBackToMain
                     )
                 }
 
                 composable(ROUTE_CREATE_ROOM) {
                     CreateRoomScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onRoomCreated = { navController.popBackStack() }
+                        onBackClick = navigateBackToStudyRooms,
+                        onRoomCreated = navigateBackToStudyRooms
                     )
                 }
 

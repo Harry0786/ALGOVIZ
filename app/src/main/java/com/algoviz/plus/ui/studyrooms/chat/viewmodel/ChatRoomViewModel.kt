@@ -3,6 +3,8 @@ package com.algoviz.plus.ui.studyrooms.chat.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.algoviz.plus.core.common.utils.UserIdentityUtils
+import com.algoviz.plus.core.datastore.PreferencesManager
 import com.algoviz.plus.domain.usecase.DeleteRoomUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMembersUseCase
 import com.algoviz.plus.domain.usecase.GetRoomMessagesUseCase
@@ -32,6 +34,7 @@ class ChatRoomViewModel @Inject constructor(
     private val sendMessageUseCase: SendMessageUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val syncMemberCountUseCase: SyncMemberCountUseCase,
+    private val preferencesManager: PreferencesManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -78,6 +81,19 @@ class ChatRoomViewModel @Inject constructor(
     
     init {
         loadChatRoom()
+    }
+
+    private suspend fun resolveDisplayName(userEmail: String): String {
+        val username = preferencesManager.profileUsername.firstOrNull().orEmpty().trim()
+        if (username.isNotBlank()) return username
+
+        val profileName = preferencesManager.profileName.firstOrNull().orEmpty().trim()
+        if (profileName.isNotBlank() && profileName != "AlgoViz User") return profileName
+
+        return UserIdentityUtils.resolveDisplayName(
+            email = userEmail,
+            fallback = "AlgoViz User"
+        )
     }
     
     private fun loadChatRoom() {
@@ -208,7 +224,7 @@ class ChatRoomViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val userName = user.email.substringBefore("@")
+                val userName = resolveDisplayName(user.email)
                 
                 _isSending.value = true
 
@@ -271,7 +287,7 @@ class ChatRoomViewModel @Inject constructor(
                     return@launch
                 }
 
-                val requesterName = user.email.substringBefore("@")
+                val requesterName = resolveDisplayName(user.email)
                 val result = deleteRoomUseCase(
                     roomId = roomId,
                     requesterId = user.id,

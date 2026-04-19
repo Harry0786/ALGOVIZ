@@ -33,6 +33,7 @@ data class MessageDto(
 data class RoomMemberDto(
     val userId: String = "",
     val userName: String = "",
+    val avatarUrl: String? = null,
     val joinedAt: Long = 0L,
     val isOnline: Boolean = false,
     val lastSeenAt: Long? = null,

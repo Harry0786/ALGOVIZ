@@ -2,7 +2,10 @@ package com.algoviz.plus.ui.studyrooms.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.algoviz.plus.core.common.utils.UserIdentityUtils
+import com.algoviz.plus.core.datastore.PreferencesManager
 import com.algoviz.plus.domain.usecase.CreateRoomUseCase
+import com.algoviz.plus.domain.usecase.GetRoomMembersUseCase
 import com.algoviz.plus.domain.usecase.GetStudyRoomsUseCase
 import com.algoviz.plus.domain.usecase.JoinStudyRoomUseCase
 import com.algoviz.plus.domain.usecase.LeaveRoomUseCase
@@ -20,10 +23,13 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -32,11 +38,13 @@ import javax.inject.Inject
 @HiltViewModel
 class StudyRoomsViewModel @Inject constructor(
     private val getStudyRoomsUseCase: GetStudyRoomsUseCase,
+    private val getRoomMembersUseCase: GetRoomMembersUseCase,
     private val joinStudyRoomUseCase: JoinStudyRoomUseCase,
     private val leaveRoomUseCase: LeaveRoomUseCase,
     private val createRoomUseCase: CreateRoomUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val syncMemberCountUseCase: SyncMemberCountUseCase
+    private val syncMemberCountUseCase: SyncMemberCountUseCase,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow<StudyRoomsUiState>(StudyRoomsUiState.Loading)
@@ -47,8 +55,12 @@ class StudyRoomsViewModel @Inject constructor(
     
     private val _createRoomEvent = MutableStateFlow<CreateRoomEvent?>(null)
     val createRoomEvent: StateFlow<CreateRoomEvent?> = _createRoomEvent.asStateFlow()
+
+    private val _roomMembersByRoom = MutableStateFlow<Map<String, List<com.algoviz.plus.domain.model.RoomMember>>>(emptyMap())
+    private val _onlineFriends = MutableStateFlow<List<com.algoviz.plus.domain.model.RoomMember>>(emptyList())
     
     private var loadRoomsJob: kotlinx.coroutines.Job? = null
+    private var membersObservationJob: kotlinx.coroutines.Job? = null
     
     init {
         loadRooms()
@@ -75,6 +87,19 @@ class StudyRoomsViewModel @Inject constructor(
                 normalized.contains("failed to fetch") -> "Connection issue. Please try again."
             else -> raw
         }
+    }
+
+    private suspend fun resolveDisplayName(userEmail: String): String {
+        val username = preferencesManager.profileUsername.firstOrNull().orEmpty().trim()
+        if (username.isNotBlank()) return username
+
+        val profileName = preferencesManager.profileName.firstOrNull().orEmpty().trim()
+        if (profileName.isNotBlank() && profileName != "AlgoViz User") return profileName
+
+        return UserIdentityUtils.resolveDisplayName(
+            email = userEmail,
+            fallback = "AlgoViz User"
+        )
     }
     
     @OptIn(FlowPreview::class)
@@ -104,6 +129,8 @@ class StudyRoomsViewModel @Inject constructor(
                     _uiState.value = StudyRoomsUiState.Error("User not authenticated")
                     return@launch
                 }
+
+                observeMyRoomMembers(user.id)
                 
                 val normalizedQuery = query.trim()
                 getStudyRoomsUseCase()
@@ -120,12 +147,21 @@ class StudyRoomsViewModel @Inject constructor(
                         filteredAllRooms to filteredMyRooms
                     }
                     .combine(getStudyRoomsUseCase.unreadCounts(user.id)) { (filteredAllRooms, filteredMyRooms), unreadCounts ->
+                        Triple(filteredAllRooms, filteredMyRooms, unreadCounts)
+                    }
+                    .combine(_roomMembersByRoom) { (filteredAllRooms, filteredMyRooms, unreadCounts), membersByRoom ->
+                        Quadruple(filteredAllRooms, filteredMyRooms, unreadCounts, membersByRoom)
+                    }
+                    .combine(_onlineFriends) { (filteredAllRooms, filteredMyRooms, unreadCounts, membersByRoom), onlineFriends ->
                         StudyRoomsUiState.Success(
                             rooms = filteredAllRooms,
                             myRooms = filteredMyRooms,
                             selectedCategory = null,
                             loadingRoomId = null,
-                            unreadCounts = unreadCounts
+                            unreadCounts = unreadCounts,
+                            roomMembersByRoom = membersByRoom,
+                            onlineFriends = onlineFriends,
+                            currentUserId = user.id
                         )
                     }
                     .catch { e ->
@@ -154,26 +190,39 @@ class StudyRoomsViewModel @Inject constructor(
                     _uiState.value = StudyRoomsUiState.Error("User not authenticated")
                     return@launch
                 }
+
+                observeMyRoomMembers(user.id)
                 
-                combine(
-                    getStudyRoomsUseCase(), 
-                    getStudyRoomsUseCase.myRooms(user.id),
-                    _selectedCategory,
-                    getStudyRoomsUseCase.unreadCounts(user.id)
-                ) { allRooms, myRooms, category, unreadCounts ->
-                    val filteredRooms = if (category != null) {
-                        allRooms.filter { it.category.name == category }
-                    } else {
-                        allRooms
+                getStudyRoomsUseCase()
+                    .combine(getStudyRoomsUseCase.myRooms(user.id)) { allRooms, myRooms ->
+                        allRooms to myRooms
                     }
-                    StudyRoomsUiState.Success(
-                        rooms = filteredRooms,
-                        myRooms = myRooms,
-                        selectedCategory = category,
-                        loadingRoomId = null,
-                        unreadCounts = unreadCounts
-                    )
-                }
+                    .combine(_selectedCategory) { (allRooms, myRooms), category ->
+                        Triple(allRooms, myRooms, category)
+                    }
+                    .combine(getStudyRoomsUseCase.unreadCounts(user.id)) { (allRooms, myRooms, category), unreadCounts ->
+                        Quadruple(allRooms, myRooms, category, unreadCounts)
+                    }
+                    .combine(_roomMembersByRoom) { (allRooms, myRooms, category, unreadCounts), membersByRoom ->
+                        Quintuple(allRooms, myRooms, category, unreadCounts, membersByRoom)
+                    }
+                    .combine(_onlineFriends) { (allRooms, myRooms, category, unreadCounts, membersByRoom), onlineFriends ->
+                        val filteredRooms = if (category != null) {
+                            allRooms.filter { it.category.name == category }
+                        } else {
+                            allRooms
+                        }
+                        StudyRoomsUiState.Success(
+                            rooms = filteredRooms,
+                            myRooms = myRooms,
+                            selectedCategory = category,
+                            loadingRoomId = null,
+                            unreadCounts = unreadCounts,
+                            roomMembersByRoom = membersByRoom,
+                            onlineFriends = onlineFriends,
+                            currentUserId = user.id
+                        )
+                    }
                 .catch { e ->
                     if (e !is CancellationException) {
                         _uiState.value = StudyRoomsUiState.Error(e.toUserMessage("Failed to load rooms. Pull to refresh."))
@@ -224,7 +273,7 @@ class StudyRoomsViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val userName = user.email.substringBefore("@")
+                val userName = resolveDisplayName(user.email)
                 
                 val result = withTimeout(10000L) { // 10 second timeout
                     joinStudyRoomUseCase(
@@ -282,7 +331,7 @@ class StudyRoomsViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val creatorName = user.email.substringBefore("@")
+                val creatorName = resolveDisplayName(user.email)
                 val result = withTimeout(30000L) { // 30 second timeout
                     createRoomUseCase(
                         name = name,
@@ -357,4 +406,60 @@ class StudyRoomsViewModel @Inject constructor(
             }
         }
     }
+
+    private fun observeMyRoomMembers(currentUserId: String) {
+        if (membersObservationJob?.isActive == true) return
+
+        membersObservationJob = viewModelScope.launch {
+            getStudyRoomsUseCase.myRooms(currentUserId)
+                .distinctUntilChangedBy { rooms -> rooms.map { it.id }.sorted() }
+                .collectLatest { myRooms ->
+                    if (myRooms.isEmpty()) {
+                        _roomMembersByRoom.value = emptyMap()
+                        _onlineFriends.value = emptyList()
+                        return@collectLatest
+                    }
+
+                    val memberFlows = myRooms.map { room ->
+                        getRoomMembersUseCase(room.id).map { members -> room.id to members }
+                    }
+
+                    combine(memberFlows) { roomMembers ->
+                        roomMembers.toMap()
+                    }
+                        .catch {
+                            _roomMembersByRoom.value = emptyMap()
+                            _onlineFriends.value = emptyList()
+                        }
+                        .collect { membersByRoom ->
+                            _roomMembersByRoom.value = membersByRoom
+
+                            val onlineFriends = membersByRoom
+                                .values
+                                .flatten()
+                                .filter { member -> member.userId != currentUserId && member.isOnline }
+                                .groupBy { member -> member.userId }
+                                .map { (_, entries) -> entries.first() }
+                                .sortedBy { member -> member.userName.lowercase() }
+
+                            _onlineFriends.value = onlineFriends
+                        }
+                }
+        }
+    }
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
+
+private data class Quintuple<A, B, C, D, E>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E
+)

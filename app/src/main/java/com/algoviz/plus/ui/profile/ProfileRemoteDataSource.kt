@@ -3,6 +3,7 @@ package com.algoviz.plus.ui.profile
 import android.content.Context
 import android.net.Uri
 import com.algoviz.plus.BuildConfig
+import com.algoviz.plus.core.common.utils.UserIdentityUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -46,27 +47,15 @@ class ProfileRemoteDataSource @Inject constructor(
     }
 
     private fun buildPublicAvatarUrl(objectPath: String, version: Long? = null): String {
-        val base = BuildConfig.SUPABASE_URL.trimEnd('/')
-        val url = "$base/storage/v1/object/public/$PROFILE_IMAGES_BUCKET/$objectPath"
-        return if (version != null) "$url?v=$version" else url
+        return UserIdentityUtils.buildPublicAvatarUrl(
+            objectPath,
+            version,
+            BuildConfig.SUPABASE_URL
+        )
     }
 
     private fun normalizeAvatarUrl(raw: String?): String? {
-        val trimmed = raw?.trim().orEmpty()
-        if (trimmed.isBlank()) return null
-
-        return when {
-            trimmed.startsWith("https://", ignoreCase = true) -> trimmed
-            trimmed.startsWith("http://", ignoreCase = true) -> trimmed.replaceFirst("http://", "https://")
-            trimmed.startsWith("/") -> "${BuildConfig.SUPABASE_URL.trimEnd('/')}$trimmed"
-            else -> {
-                if (trimmed.startsWith("storage/v1/object/public/")) {
-                    "${BuildConfig.SUPABASE_URL.trimEnd('/')}/$trimmed"
-                } else {
-                    trimmed
-                }
-            }
-        }
+        return UserIdentityUtils.normalizeAvatarUrl(raw, BuildConfig.SUPABASE_URL)
     }
 
     private fun JsonObject.valueOrNull(key: String): String? {
@@ -81,25 +70,20 @@ class ProfileRemoteDataSource @Inject constructor(
         fallback: String = "AlgoViz User"
     ): String {
         val metadata = user.userMetadata
-        return listOf(
-            preferred,
-            metadata?.valueOrNull("name"),
-            metadata?.valueOrNull("full_name"),
-            metadata?.valueOrNull("user_name"),
-            metadata?.valueOrNull("preferred_username"),
-            metadata?.valueOrNull("given_name"),
-            user.email?.substringBefore('@')
-        ).firstOrNull { !it.isNullOrBlank() } ?: fallback
+        return UserIdentityUtils.resolveDisplayName(
+            email = user.email,
+            metadataName = metadata?.valueOrNull("name"),
+            metadataFullName = metadata?.valueOrNull("full_name"),
+            metadataUserName = metadata?.valueOrNull("user_name"),
+            metadataPreferredUsername = metadata?.valueOrNull("preferred_username"),
+            metadataGivenName = metadata?.valueOrNull("given_name"),
+            preferred = preferred,
+            fallback = fallback
+        )
     }
 
     private fun extractStorageObjectPath(rawUrl: String?): String? {
-        val normalized = normalizeAvatarUrl(rawUrl) ?: return null
-        val marker = "/storage/v1/object/public/$PROFILE_IMAGES_BUCKET/"
-        val index = normalized.indexOf(marker)
-        if (index == -1) return null
-
-        val afterMarker = normalized.substring(index + marker.length)
-        return afterMarker.substringBefore('?').trim().ifBlank { null }
+        return UserIdentityUtils.extractStorageObjectPath(rawUrl, BuildConfig.SUPABASE_URL)
     }
 
     private suspend fun getExistingAvatarObjectPath(uid: String): String? {
@@ -322,27 +306,26 @@ class ProfileRemoteDataSource @Inject constructor(
                 return Result.success(null)
             }
 
-            fun JsonObject.string(key: String, fallback: String): String {
-                return this[key]?.jsonPrimitive?.content?.ifBlank { fallback } ?: fallback
-            }
-
             val profile = UserProfile(
-                name = resolveDisplayName(user),
-                username = metadata.string(
-                    "username",
-                    metadata.string(
-                        "user_name",
-                        metadata.string(
-                            "preferred_username",
-                            user.email?.substringBefore('@') ?: ""
-                        )
-                    )
+                name = UserIdentityUtils.resolveDisplayName(
+                    email = user.email,
+                    metadataName = metadata.valueOrNull("name"),
+                    metadataFullName = metadata.valueOrNull("full_name"),
+                    metadataUserName = metadata.valueOrNull("user_name"),
+                    metadataPreferredUsername = metadata.valueOrNull("preferred_username"),
+                    metadataGivenName = metadata.valueOrNull("given_name")
                 ),
-                email = metadata.string(
-                    "profileEmail",
-                    metadata.string("email", user.email ?: "user@algoviz.com")
+                username = UserIdentityUtils.resolveUsername(
+                    email = user.email,
+                    metadataUsername = metadata.valueOrNull("username"),
+                    metadataUserName = metadata.valueOrNull("user_name"),
+                    metadataPreferredUsername = metadata.valueOrNull("preferred_username")
                 ),
-                phoneNumber = metadata.string("phoneNumber", metadata.string("phone", "")),
+                email = metadata["profileEmail"]?.jsonPrimitive?.content?.ifBlank { user.email ?: "user@algoviz.com" }
+                    ?: metadata["email"]?.jsonPrimitive?.content?.ifBlank { user.email ?: "user@algoviz.com" }
+                    ?: user.email ?: "user@algoviz.com",
+                phoneNumber = metadata["phoneNumber"]?.jsonPrimitive?.content?.ifBlank { metadata["phone"]?.jsonPrimitive?.content ?: "" }
+                    ?: metadata["phone"]?.jsonPrimitive?.content ?: "",
                 avatarUrl = normalizeAvatarUrl(metadata["avatarUrl"]?.jsonPrimitive?.content),
                 avatarColorIndex = metadata["avatarColorIndex"]?.jsonPrimitive?.intOrNull ?: 0
             )

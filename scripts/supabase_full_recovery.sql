@@ -83,6 +83,71 @@ alter table public.user_profiles
 alter table public.user_profiles
     add column if not exists username text not null default '';
 
+-- Ensure user_profiles entry syncs with auth.users via trigger
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_user_id text;
+  v_email text;
+  v_name text;
+  v_username text;
+begin
+  v_user_id := new.id::text;
+  v_email := coalesce(new.email, '');
+  v_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'name', ''),
+    nullif(new.raw_user_meta_data ->> 'full_name', ''),
+    nullif(new.raw_user_meta_data ->> 'user_name', ''),
+    nullif(new.raw_user_meta_data ->> 'preferred_username', ''),
+    split_part(v_email, '@', 1),
+    ''
+  );
+  v_username := coalesce(
+    nullif(new.raw_user_meta_data ->> 'username', ''),
+    nullif(new.raw_user_meta_data ->> 'user_name', ''),
+    nullif(new.raw_user_meta_data ->> 'preferred_username', ''),
+    split_part(v_email, '@', 1),
+    ''
+  );
+
+  insert into public.user_profiles (
+    user_id,
+    name,
+    username,
+    email,
+    phone_no,
+    avatar_url,
+    avatar_color_index,
+    updated_at
+  ) values (
+    v_user_id,
+    v_name,
+    v_username,
+    v_email,
+    coalesce(nullif(new.raw_user_meta_data ->> 'phoneNumber', ''), nullif(new.raw_user_meta_data ->> 'phone', ''), coalesce(new.phone, ''), ''),
+    nullif(coalesce(new.raw_user_meta_data ->> 'avatarUrl', ''), ''),
+    coalesce((new.raw_user_meta_data ->> 'avatarColorIndex')::integer, 0),
+    extract(epoch from now())::bigint
+  )
+  on conflict (user_id) do update
+  set
+    email = excluded.email,
+    updated_at = excluded.updated_at;
+
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
 -- ------------------------------------------------------------
 -- Indexes
 -- ------------------------------------------------------------
@@ -92,6 +157,9 @@ create index if not exists idx_study_room_members_user_id
 
 create index if not exists idx_study_room_messages_room_timestamp
     on public.study_room_messages(room_id, timestamp);
+
+create index if not exists idx_user_profiles_user_id
+    on public.user_profiles(user_id);
 
 -- ------------------------------------------------------------
 -- Recover user_profiles from auth.users metadata
@@ -152,33 +220,45 @@ set
 alter table public.user_profiles enable row level security;
 
 drop policy if exists "user_profiles_select_own" on public.user_profiles;
-create policy "user_profiles_select_own"
+drop policy if exists "user_profiles_select_room_members" on public.user_profiles;
+drop policy if exists "user_profiles_select_access" on public.user_profiles;
+create policy "user_profiles_select_access"
 on public.user_profiles
 for select
 to authenticated
-using (user_id = auth.uid()::text);
+using (
+    user_id = (select auth.uid())::text
+    or exists (
+        select 1
+        from public.study_room_members m
+        join public.study_rooms r
+            on r.id = m.room_id
+        where m.user_id = user_profiles.user_id
+          and r.is_active = true
+    )
+);
 
 drop policy if exists "user_profiles_insert_own" on public.user_profiles;
 create policy "user_profiles_insert_own"
 on public.user_profiles
 for insert
 to authenticated
-with check (user_id = auth.uid()::text);
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "user_profiles_update_own" on public.user_profiles;
 create policy "user_profiles_update_own"
 on public.user_profiles
 for update
 to authenticated
-using (user_id = auth.uid()::text)
-with check (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text)
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "user_profiles_delete_own" on public.user_profiles;
 create policy "user_profiles_delete_own"
 on public.user_profiles
 for delete
 to authenticated
-using (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text);
 
 -- ------------------------------------------------------------
 -- RLS for study room flows
@@ -188,6 +268,14 @@ alter table public.study_rooms enable row level security;
 alter table public.study_room_members enable row level security;
 alter table public.study_room_messages enable row level security;
 alter table public.user_presence enable row level security;
+alter table public.app_config enable row level security;
+
+drop policy if exists "app_config_select_auth" on public.app_config;
+create policy "app_config_select_auth"
+on public.app_config
+for select
+to authenticated
+using (true);
 
 drop policy if exists "study_rooms_select_all_active" on public.study_rooms;
 create policy "study_rooms_select_all_active"
@@ -201,7 +289,7 @@ create policy "study_rooms_insert_creator"
 on public.study_rooms
 for insert
 to authenticated
-with check (created_by = auth.uid()::text);
+with check (created_by = (select auth.uid())::text);
 
 drop policy if exists "study_rooms_update_members" on public.study_rooms;
 create policy "study_rooms_update_members"
@@ -209,21 +297,21 @@ on public.study_rooms
 for update
 to authenticated
 using (
-    created_by = auth.uid()::text
+    created_by = (select auth.uid())::text
     or exists (
         select 1
         from public.study_room_members m
         where m.room_id = study_rooms.id
-          and m.user_id = auth.uid()::text
+          and m.user_id = (select auth.uid())::text
     )
 )
 with check (
-    created_by = auth.uid()::text
+    created_by = (select auth.uid())::text
     or exists (
         select 1
         from public.study_room_members m
         where m.room_id = study_rooms.id
-          and m.user_id = auth.uid()::text
+          and m.user_id = (select auth.uid())::text
     )
 );
 
@@ -240,12 +328,12 @@ on public.study_room_members
 for insert
 to authenticated
 with check (
-    user_id = auth.uid()::text
+    user_id = (select auth.uid())::text
     or exists (
         select 1
         from public.study_rooms r
         where r.id = study_room_members.room_id
-          and r.created_by = auth.uid()::text
+          and r.created_by = (select auth.uid())::text
     )
 );
 
@@ -255,16 +343,16 @@ on public.study_room_members
 for update
 to authenticated
 using (
-    user_id = auth.uid()::text
+    user_id = (select auth.uid())::text
     or exists (
         select 1
         from public.study_room_members me
         where me.room_id = study_room_members.room_id
-          and me.user_id = auth.uid()::text
+          and me.user_id = (select auth.uid())::text
     )
 )
 with check (
-    user_id = auth.uid()::text
+    user_id = (select auth.uid())::text
     or exists (
         select 1
         from public.study_room_members me
@@ -284,7 +372,7 @@ using (
         select 1
         from public.study_rooms r
         where r.id = study_room_members.room_id
-          and r.created_by = auth.uid()::text
+          and r.created_by = (select auth.uid())::text
     )
 );
 
@@ -300,22 +388,22 @@ create policy "study_room_messages_insert_sender"
 on public.study_room_messages
 for insert
 to authenticated
-with check (user_id = auth.uid()::text);
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "study_room_messages_update_own" on public.study_room_messages;
 create policy "study_room_messages_update_own"
 on public.study_room_messages
 for update
 to authenticated
-using (user_id = auth.uid()::text)
-with check (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text)
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "study_room_messages_delete_own" on public.study_room_messages;
 create policy "study_room_messages_delete_own"
 on public.study_room_messages
 for delete
 to authenticated
-using (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text);
 
 drop policy if exists "user_presence_select_auth" on public.user_presence;
 create policy "user_presence_select_auth"
@@ -329,22 +417,22 @@ create policy "user_presence_insert_own"
 on public.user_presence
 for insert
 to authenticated
-with check (user_id = auth.uid()::text);
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "user_presence_update_own" on public.user_presence;
 create policy "user_presence_update_own"
 on public.user_presence
 for update
 to authenticated
-using (user_id = auth.uid()::text)
-with check (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text)
+with check (user_id = (select auth.uid())::text);
 
 drop policy if exists "user_presence_delete_own" on public.user_presence;
 create policy "user_presence_delete_own"
 on public.user_presence
 for delete
 to authenticated
-using (user_id = auth.uid()::text);
+using (user_id = (select auth.uid())::text);
 
 -- ------------------------------------------------------------
 -- Storage bucket and policies for avatars
@@ -354,13 +442,19 @@ insert into storage.buckets (id, name, public)
 values ('Algoviz', 'Algoviz', true)
 on conflict (id) do update set public = excluded.public;
 
--- Recreate policies safely
+-- Public bucket URLs do not require broad SELECT listing policies.
 drop policy if exists "Avatar public read" on storage.objects;
-create policy "Avatar public read"
+drop policy if exists "algoviz_avatar_select" on storage.objects;
+
+drop policy if exists "Avatar auth select own" on storage.objects;
+create policy "Avatar auth select own"
 on storage.objects
 for select
-to public
-using (bucket_id = 'Algoviz');
+to authenticated
+using (
+    bucket_id = 'Algoviz'
+    and name = 'profile_images/' || (select auth.uid())::text || '.jpg'
+);
 
 drop policy if exists "Avatar auth insert own" on storage.objects;
 create policy "Avatar auth insert own"
@@ -369,7 +463,7 @@ for insert
 to authenticated
 with check (
     bucket_id = 'Algoviz'
-    and name = 'profile_images/' || auth.uid()::text || '.jpg'
+    and name = 'profile_images/' || (select auth.uid())::text || '.jpg'
 );
 
 drop policy if exists "Avatar auth update own" on storage.objects;
@@ -379,11 +473,11 @@ for update
 to authenticated
 using (
     bucket_id = 'Algoviz'
-    and name = 'profile_images/' || auth.uid()::text || '.jpg'
+    and name = 'profile_images/' || (select auth.uid())::text || '.jpg'
 )
 with check (
     bucket_id = 'Algoviz'
-    and name = 'profile_images/' || auth.uid()::text || '.jpg'
+    and name = 'profile_images/' || (select auth.uid())::text || '.jpg'
 );
 
 drop policy if exists "Avatar auth delete own" on storage.objects;
@@ -393,7 +487,7 @@ for delete
 to authenticated
 using (
     bucket_id = 'Algoviz'
-    and name = 'profile_images/' || auth.uid()::text || '.jpg'
+    and name = 'profile_images/' || (select auth.uid())::text || '.jpg'
 );
 
 commit;

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -79,16 +80,31 @@ class ProfileViewModel @Inject constructor(
                 .collect { activeUserId ->
                     if (activeUserId.isNullOrBlank()) return@collect
 
-                    val remoteProfile = profileRemoteDataSource.getUserProfile().getOrNull()
-                    Timber.d("ProfileViewModel - User switch/profile refresh: userId=$activeUserId, avatarUrl=${remoteProfile?.avatarUrl ?: "null"}")
-
-                    if (remoteProfile != null) {
-                        persistLocalProfile(remoteProfile)
-                        _userProfile.value = remoteProfile
-                        Timber.d("ProfileViewModel - Remote hydration done for userId=$activeUserId")
-                    }
+                    hydrateProfileWithRetry(activeUserId)
                 }
         }
+    }
+
+    private suspend fun hydrateProfileWithRetry(activeUserId: String) {
+        // Auth session restoration can complete after userId is already in DataStore.
+        // Retry remote hydration briefly so profile doesn't stay on defaults.
+        repeat(12) { attempt ->
+            val remoteProfile = profileRemoteDataSource.getUserProfile().getOrNull()
+            Timber.d(
+                "ProfileViewModel - Remote hydrate attempt=$attempt userId=$activeUserId avatarUrl=${remoteProfile?.avatarUrl ?: "null"}"
+            )
+
+            if (remoteProfile != null) {
+                persistLocalProfile(remoteProfile)
+                _userProfile.value = remoteProfile
+                Timber.d("ProfileViewModel - Remote hydration done for userId=$activeUserId on attempt=$attempt")
+                return
+            }
+
+            delay(250)
+        }
+
+        Timber.w("ProfileViewModel - Remote hydration unavailable after retries for userId=$activeUserId")
     }
     
     fun updateProfile(
