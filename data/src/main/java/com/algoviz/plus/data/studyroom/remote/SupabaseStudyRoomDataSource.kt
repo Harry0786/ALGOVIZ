@@ -6,14 +6,29 @@ import com.algoviz.plus.data.studyroom.model.RoomMemberDto
 import com.algoviz.plus.data.studyroom.model.StudyRoomDto
 import com.algoviz.plus.data.studyroom.model.UserPresenceDto
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.realtime.PostgresChangeFilter
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -81,6 +96,15 @@ class SupabaseStudyRoomDataSource @Inject constructor(
     @Serializable
     private data class UserProfileAvatarRow(
         @SerialName("user_id") val userId: String,
+        @SerialName("avatar_url") val avatarUrl: String? = null,
+        val name: String? = null,
+        val username: String? = null,
+        val email: String? = null
+    )
+
+    @Serializable
+    private data class UserProfileAvatarByIdRow(
+        val id: String,
         @SerialName("avatar_url") val avatarUrl: String? = null,
         val name: String? = null,
         val username: String? = null,
@@ -162,6 +186,147 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         }.distinctUntilChanged()
     }
 
+    private fun normalizeMemberAvatarUrl(raw: String?): String? {
+        val normalized = UserIdentityUtils.normalizeAvatarUrl(
+            raw = raw,
+            supabaseUrl = supabaseBaseUrl
+        ) ?: return null
+
+        val lower = normalized.lowercase()
+        if (lower.startsWith("algoviz/")) {
+            return "$supabaseBaseUrl/storage/v1/object/public/$normalized"
+        }
+
+        return normalized
+    }
+
+    private fun fallbackMemberAvatarUrl(userId: String): String {
+        return UserIdentityUtils.buildPublicAvatarUrl(
+            objectPath = "profile_images/$userId.jpg",
+            version = null,
+            supabaseUrl = supabaseBaseUrl
+        )
+    }
+
+    @OptIn(SupabaseExperimental::class)
+    private fun <T> observeReloadOnChanges(
+        channelName: String,
+        vararg watchers: Pair<String, PostgresChangeFilter.() -> Unit>,
+        fetcher: suspend () -> T
+    ): Flow<T> = channelFlow {
+        val channel = supabaseClient.channel(channelName)
+        val watcherJobs = watchers.map { (table, filterBlock) ->
+            launch {
+                channel.postgresChangeFlow<PostgresAction>("public") {
+                    this.table = table
+                    filterBlock()
+                }.collect {
+                    trySend(fetcher())
+                }
+            }
+        }
+        trySend(fetcher())
+        val subscribeJob = launch {
+            channel.subscribe()
+        }
+
+        awaitClose {
+            watcherJobs.forEach { it.cancel() }
+            subscribeJob.cancel()
+            launch {
+                supabaseClient.realtime.removeChannel(channel)
+            }
+        }
+    }
+
+    private suspend fun loadProfileByUserIds(userIds: List<String>): Map<String, UserProfileAvatarRow> {
+        if (userIds.isEmpty()) return emptyMap()
+
+        return runCatching {
+            userProfilesTable.select {
+                filter {
+                    isIn("user_id", userIds)
+                }
+            }.decodeList<UserProfileAvatarRow>().associateBy { it.userId }
+        }.getOrElse {
+            runCatching {
+                userProfilesTable.select {
+                    filter {
+                        isIn("id", userIds)
+                    }
+                }.decodeList<UserProfileAvatarByIdRow>()
+                    .associate { row ->
+                        row.id to UserProfileAvatarRow(
+                            userId = row.id,
+                            avatarUrl = row.avatarUrl,
+                            name = row.name,
+                            username = row.username,
+                            email = row.email
+                        )
+                    }
+            }.getOrElse { emptyMap() }
+        }
+    }
+
+    private suspend fun buildRoomMemberDtos(members: List<RoomMemberRow>): List<RoomMemberDto> {
+        val userIds = members.map { it.userId }.distinct()
+        val presenceByUserId = if (userIds.isEmpty()) {
+            emptyMap()
+        } else {
+            runCatching {
+                presenceTable.select {
+                    filter {
+                        isIn("user_id", userIds)
+                    }
+                }.decodeList<PresenceRow>().associateBy { it.userId }
+            }.getOrElse { emptyMap() }
+        }
+
+        val profileByUserId = loadProfileByUserIds(userIds)
+        val now = System.currentTimeMillis()
+
+        return members.map { member ->
+            val presence = presenceByUserId[member.userId]
+            val typingFresh = member.isTyping && member.typingAt?.let { now - it <= STALE_TYPING_MS } == true
+            val presenceOnline = presence?.isOnline == true
+            val memberRecent = member.lastSeenAt?.let { now - it <= STALE_MEMBER_ONLINE_MS } == true
+            val resolvedOnline = when (presence?.isOnline) {
+                true -> true
+                false -> typingFresh
+                null -> typingFresh || memberRecent || presenceOnline
+            }
+            val profile = profileByUserId[member.userId]
+            val avatarUrl = normalizeMemberAvatarUrl(profile?.avatarUrl)
+                ?: fallbackMemberAvatarUrl(member.userId)
+            val resolvedName = profile?.name?.takeUnless { it.isNullOrBlank() }
+                ?: profile?.username?.takeUnless { it.isNullOrBlank() }
+                ?: profile?.email?.substringBefore('@')?.takeUnless { it.isNullOrBlank() }
+                ?: member.userName.ifBlank { "AlgoViz User" }
+
+            member.copy(
+                userName = resolvedName,
+                isOnline = resolvedOnline,
+                lastSeenAt = maxOf(
+                    presence?.lastSeenAt ?: 0L,
+                    member.lastSeenAt ?: 0L,
+                    member.joinedAt
+                ).takeIf { it > 0L },
+                isTyping = typingFresh,
+                typingAt = if (typingFresh) member.typingAt else null
+            ).toDto(avatarUrl)
+        }.sortedBy { it.userName.lowercase() }
+    }
+
+    private suspend fun fetchRoomMemberDtos(roomId: String): List<RoomMemberDto> {
+        val members = membersTable.select {
+            filter {
+                eq("room_id", roomId)
+            }
+        }.decodeList<RoomMemberRow>()
+
+        return buildRoomMemberDtos(members)
+    }
+
     private suspend fun getRoomRow(roomId: String): StudyRoomRow? {
         return roomsTable.select {
             filter {
@@ -192,7 +357,12 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         }
     }
 
-    fun observeAllRooms(): Flow<List<StudyRoomDto>> = pollingFlow {
+    fun observeAllRooms(): Flow<List<StudyRoomDto>> = observeReloadOnChanges(
+        channelName = "study-rooms-all",
+        "study_rooms" to {},
+        "study_room_members" to {},
+        "study_room_messages" to {}
+    ) {
         roomsTable.select {
             filter {
                 eq("is_active", true)
@@ -202,7 +372,12 @@ class SupabaseStudyRoomDataSource @Inject constructor(
             .map { it.toDto() }
     }
 
-    fun observeRoomsByCategory(category: String): Flow<List<StudyRoomDto>> = pollingFlow {
+    fun observeRoomsByCategory(category: String): Flow<List<StudyRoomDto>> = observeReloadOnChanges(
+        channelName = "study-rooms-category-$category",
+        "study_rooms" to {},
+        "study_room_members" to {},
+        "study_room_messages" to {}
+    ) {
         roomsTable.select {
             filter {
                 eq("category", category)
@@ -213,11 +388,29 @@ class SupabaseStudyRoomDataSource @Inject constructor(
             .map { it.toDto() }
     }
 
-    fun observeRoomById(roomId: String): Flow<StudyRoomDto?> = pollingFlow(1200L) {
+    fun observeRoomById(roomId: String): Flow<StudyRoomDto?> = observeReloadOnChanges(
+        channelName = "study-room-$roomId",
+        "study_rooms" to {
+            filter("id", FilterOperator.EQ, roomId)
+        },
+        "study_room_members" to {
+            filter("room_id", FilterOperator.EQ, roomId)
+        },
+        "study_room_messages" to {
+            filter("room_id", FilterOperator.EQ, roomId)
+        }
+    ) {
         getRoomRow(roomId)?.toDto()
     }
 
-    fun observeMyRooms(userId: String): Flow<List<StudyRoomDto>> = pollingFlow(1200L) {
+    fun observeMyRooms(userId: String): Flow<List<StudyRoomDto>> = observeReloadOnChanges(
+        channelName = "study-rooms-mine-$userId",
+        "study_room_members" to {
+            filter("user_id", FilterOperator.EQ, userId)
+        },
+        "study_rooms" to {},
+        "study_room_messages" to {}
+    ) {
         val memberships = membersTable.select {
             filter {
                 eq("user_id", userId)
@@ -238,7 +431,12 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         }
     }
 
-    fun observeUnreadCounts(userId: String): Flow<Map<String, Int>> = pollingFlow(1200L) {
+    fun observeUnreadCounts(userId: String): Flow<Map<String, Int>> = observeReloadOnChanges(
+        channelName = "study-rooms-unread-$userId",
+        "study_room_members" to {
+            filter("user_id", FilterOperator.EQ, userId)
+        }
+    ) {
         membersTable.select {
             filter {
                 eq("user_id", userId)
@@ -628,72 +826,65 @@ class SupabaseStudyRoomDataSource @Inject constructor(
         }
     }
 
-    fun observeRoomMembers(roomId: String): Flow<List<RoomMemberDto>> = pollingFlow(1200L) {
-        val members = membersTable.select {
-            filter {
-                eq("room_id", roomId)
+    @OptIn(SupabaseExperimental::class)
+    fun observeRoomMembers(roomId: String): Flow<List<RoomMemberDto>> = channelFlow {
+        val channel = supabaseClient.channel("room-members-$roomId")
+        val reloadTrigger = launch {
+            merge(
+                channel.postgresChangeFlow<PostgresAction>("public") {
+                    table = "study_room_members"
+                    filter("room_id", io.github.jan.supabase.postgrest.query.filter.FilterOperator.EQ, roomId)
+                },
+                channel.postgresChangeFlow<PostgresAction>("public") {
+                    table = "user_presence"
+                }
+            ).collect {
+                trySend(fetchRoomMemberDtos(roomId))
             }
-        }.decodeList<RoomMemberRow>()
-
-        val userIds = members.map { it.userId }
-        val presenceByUserId = if (userIds.isEmpty()) {
-            emptyMap()
-        } else {
-            runCatching {
-                presenceTable.select {
-                    filter {
-                        isIn("user_id", userIds)
-                    }
-                }.decodeList<PresenceRow>().associateBy { it.userId }
-            }.getOrElse { emptyMap() }
         }
 
-        val profileByUserId = if (userIds.isEmpty()) {
-            emptyMap()
-        } else {
-            runCatching {
-                userProfilesTable.select {
-                    filter {
-                        isIn("user_id", userIds)
-                    }
-                }.decodeList<UserProfileAvatarRow>()
-                    .associateBy { it.userId }
-            }.getOrElse { emptyMap() }
+        trySend(fetchRoomMemberDtos(roomId))
+        val subscribeJob = launch {
+            channel.subscribe()
         }
 
-        val now = System.currentTimeMillis()
-        members.map { member ->
-            val presence = presenceByUserId[member.userId]
-            val typingFresh = member.isTyping && member.typingAt?.let { now - it <= STALE_TYPING_MS } == true
-            val presenceOnline = presence?.isOnline == true
-            val presenceRecent = presence?.lastSeenAt?.let { now - it <= STALE_MEMBER_ONLINE_MS } == true
-            val memberRecent = member.lastSeenAt?.let { now - it <= STALE_MEMBER_ONLINE_MS } == true
-            val profile = profileByUserId[member.userId]
-            val avatarUrl = UserIdentityUtils.normalizeAvatarUrl(
-                raw = profile?.avatarUrl,
-                supabaseUrl = supabaseBaseUrl
-            )
-            val resolvedName = profile?.name?.takeUnless { it.isNullOrBlank() }
-                ?: profile?.username?.takeUnless { it.isNullOrBlank() }
-                ?: profile?.email?.substringBefore('@')?.takeUnless { it.isNullOrBlank() }
-                ?: member.userName.ifBlank { "AlgoViz User" }
-
-            member.copy(
-                userName = resolvedName,
-                isOnline = presenceOnline || member.isOnline || presenceRecent || memberRecent || typingFresh,
-                lastSeenAt = maxOf(
-                    presence?.lastSeenAt ?: 0L,
-                    member.lastSeenAt ?: 0L,
-                    member.joinedAt
-                ).takeIf { it > 0L },
-                isTyping = typingFresh,
-                typingAt = if (typingFresh) member.typingAt else null
-            ).toDto(avatarUrl)
-        }.sortedBy { it.userName.lowercase() }
+        awaitClose {
+            reloadTrigger.cancel()
+            subscribeJob.cancel()
+            launch {
+                supabaseClient.realtime.removeChannel(channel)
+            }
+        }
     }
 
-    fun observeUserPresence(userId: String): Flow<UserPresenceDto?> = pollingFlow(2000L) {
-        presenceTable.select {
+    @OptIn(SupabaseExperimental::class)
+    fun observeUserPresence(userId: String): Flow<UserPresenceDto?> = channelFlow {
+        val channel = supabaseClient.channel("user-presence-$userId")
+        val reloadTrigger = launch {
+            channel.postgresChangeFlow<PostgresAction>("public") {
+                table = "user_presence"
+                filter("user_id", io.github.jan.supabase.postgrest.query.filter.FilterOperator.EQ, userId)
+            }.collect {
+                trySend(fetchUserPresence(userId))
+            }
+        }
+
+        trySend(fetchUserPresence(userId))
+        val subscribeJob = launch {
+            channel.subscribe()
+        }
+
+        awaitClose {
+            reloadTrigger.cancel()
+            subscribeJob.cancel()
+            launch {
+                supabaseClient.realtime.removeChannel(channel)
+            }
+        }
+    }
+
+    private suspend fun fetchUserPresence(userId: String): UserPresenceDto? {
+        return presenceTable.select {
             filter {
                 eq("user_id", userId)
             }

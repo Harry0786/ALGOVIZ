@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.R
 import com.algoviz.plus.domain.model.RoomMember
 import com.algoviz.plus.domain.model.StudyRoom
@@ -318,6 +319,10 @@ private fun StudyRoomListCard(
     isLoading: Boolean,
     onClick: () -> Unit
 ) {
+    val roomAvatarUrl = members.firstOrNull()?.let { member ->
+        member.avatarUrl?.takeUnless { it.isBlank() } ?: deterministicAvatarUrl(member.userId)
+    } ?: deterministicAvatarUrl(room.createdBy)
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -329,12 +334,23 @@ private fun StudyRoomListCard(
         shadowElevation = 0.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Image(
-                painter = painterResource(id = R.drawable.bg5),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            if (roomAvatarUrl.isNullOrBlank()) {
+                Image(
+                    painter = painterResource(id = R.drawable.bg5),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                AsyncImage(
+                    model = roomAvatarUrl,
+                    contentDescription = "Room avatar",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = R.drawable.bg5),
+                    fallback = painterResource(id = R.drawable.bg5)
+                )
+            }
 
             Box(
                 modifier = Modifier
@@ -370,6 +386,7 @@ private fun StudyRoomListCard(
 
                 previewMembers.forEach { member ->
                     AvatarBadge(
+                        userId = member.userId,
                         name = member.userName,
                         avatarUrl = member.avatarUrl,
                         isOnline = member.isOnline,
@@ -466,33 +483,35 @@ private fun StudyRoomListCard(
 
 @Composable
 private fun AvatarBadge(
+    userId: String,
     name: String,
     avatarUrl: String?,
     isOnline: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val fallbackUrl = remember(userId) { deterministicAvatarUrl(userId) }
+    var resolvedUrl by remember(userId, avatarUrl) {
+        mutableStateOf(avatarUrl?.takeUnless { it.isBlank() } ?: fallbackUrl)
+    }
+
     Box(
         modifier = modifier
             .clip(CircleShape)
             .border(width = 2.dp, color = Color(0xFF2B2B2F), shape = CircleShape)
     ) {
-        if (avatarUrl.isNullOrBlank()) {
-            Image(
-                painter = painterResource(id = R.drawable.user),
-                contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            AsyncImage(
-                model = avatarUrl,
-                contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                error = painterResource(id = R.drawable.user),
-                fallback = painterResource(id = R.drawable.user)
-            )
-        }
+        AsyncImage(
+            model = resolvedUrl,
+            contentDescription = name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            error = painterResource(id = R.drawable.user),
+            fallback = painterResource(id = R.drawable.user),
+            onError = {
+                if (resolvedUrl != fallbackUrl) {
+                    resolvedUrl = fallbackUrl
+                }
+            }
+        )
 
         if (isOnline) {
             Box(
@@ -551,6 +570,7 @@ private fun FriendsOnlineSection(onlineFriends: List<RoomMember>) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AvatarBadge(
+                        userId = friend.userId,
                         name = friend.userName,
                         avatarUrl = friend.avatarUrl,
                         isOnline = friend.isOnline,
@@ -597,6 +617,11 @@ private fun FriendsOnlineSection(onlineFriends: List<RoomMember>) {
             }
         }
     }
+}
+
+private fun deterministicAvatarUrl(userId: String): String {
+    val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+    return "$baseUrl/storage/v1/object/public/Algoviz/profile_images/$userId.jpg"
 }
 
 private fun formatTime(timestamp: Long): String {

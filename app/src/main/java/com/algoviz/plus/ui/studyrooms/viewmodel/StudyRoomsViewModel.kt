@@ -130,7 +130,7 @@ class StudyRoomsViewModel @Inject constructor(
                     return@launch
                 }
 
-                observeMyRoomMembers(user.id)
+                observeRoomMembers(user.id)
                 
                 val normalizedQuery = query.trim()
                 getStudyRoomsUseCase()
@@ -191,7 +191,7 @@ class StudyRoomsViewModel @Inject constructor(
                     return@launch
                 }
 
-                observeMyRoomMembers(user.id)
+                observeRoomMembers(user.id)
                 
                 getStudyRoomsUseCase()
                     .combine(getStudyRoomsUseCase.myRooms(user.id)) { allRooms, myRooms ->
@@ -407,21 +407,32 @@ class StudyRoomsViewModel @Inject constructor(
         }
     }
 
-    private fun observeMyRoomMembers(currentUserId: String) {
+    private fun observeRoomMembers(currentUserId: String) {
         if (membersObservationJob?.isActive == true) return
 
         membersObservationJob = viewModelScope.launch {
-            getStudyRoomsUseCase.myRooms(currentUserId)
-                .distinctUntilChangedBy { rooms -> rooms.map { it.id }.sorted() }
-                .collectLatest { myRooms ->
-                    if (myRooms.isEmpty()) {
+            combine(
+                getStudyRoomsUseCase(),
+                getStudyRoomsUseCase.myRooms(currentUserId)
+            ) { allRooms, myRooms ->
+                allRooms to myRooms
+            }
+                .distinctUntilChangedBy { (allRooms, myRooms) ->
+                    allRooms.map { it.id }.sorted() to myRooms.map { it.id }.sorted()
+                }
+                .collectLatest { (allRooms, myRooms) ->
+                    if (allRooms.isEmpty()) {
                         _roomMembersByRoom.value = emptyMap()
                         _onlineFriends.value = emptyList()
                         return@collectLatest
                     }
 
-                    val memberFlows = myRooms.map { room ->
-                        getRoomMembersUseCase(room.id).map { members -> room.id to members }
+                    val myRoomIds = myRooms.map { it.id }.toSet()
+
+                    val memberFlows = allRooms.map { room ->
+                        getRoomMembersUseCase(room.id)
+                            .map { members -> room.id to members }
+                            .catch { emit(room.id to emptyList()) }
                     }
 
                     combine(memberFlows) { roomMembers ->
@@ -435,6 +446,7 @@ class StudyRoomsViewModel @Inject constructor(
                             _roomMembersByRoom.value = membersByRoom
 
                             val onlineFriends = membersByRoom
+                                .filterKeys { roomId -> roomId in myRoomIds }
                                 .values
                                 .flatten()
                                 .filter { member -> member.userId != currentUserId && member.isOnline }
