@@ -54,8 +54,8 @@ android {
         applicationId = "com.algoviz.plus"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "2.0.12"
+        versionCode = 18
+        versionName = "2.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
