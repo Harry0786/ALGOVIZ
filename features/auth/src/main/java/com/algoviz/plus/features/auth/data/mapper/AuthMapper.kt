@@ -1,7 +1,7 @@
 package com.algoviz.plus.features.auth.data.mapper
 
 import com.algoviz.plus.features.auth.domain.model.User
-import io.github.jan.supabase.gotrue.user.UserInfo
+import io.github.jan.supabase.auth.user.UserInfo
 
 object AuthMapper {
     fun mapSupabaseUserToDomain(supabaseUser: UserInfo): User {

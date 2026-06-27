@@ -6,19 +6,19 @@ import javax.inject.Singleton
 
 @Singleton
 class SortingAlgorithms @Inject constructor() {
-    
+
     fun bubbleSort(initialArray: List<Int>): List<AlgorithmStep> {
         val steps = mutableListOf<AlgorithmStep>()
         val array = initialArray.toMutableList()
         var comparisons = 0
         var swaps = 0
         val n = array.size
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             description = "Starting Bubble Sort with ${array.size} elements"
         ))
-        
+
         for (i in 0 until n - 1) {
             var swapped = false
             for (j in 0 until n - i - 1) {
@@ -32,7 +32,7 @@ class SortingAlgorithms @Inject constructor() {
                     swaps = swaps,
                     description = "Comparing ${array[j]} and ${array[j + 1]}"
                 ))
-                
+
                 if (array[j] > array[j + 1]) {
                     // Swapping
                     swaps++
@@ -40,7 +40,7 @@ class SortingAlgorithms @Inject constructor() {
                     array[j] = array[j + 1]
                     array[j + 1] = temp
                     swapped = true
-                    
+
                     steps.add(AlgorithmStep(
                         array = array.toList(),
                         swappingIndices = setOf(j, j + 1),
@@ -51,10 +51,10 @@ class SortingAlgorithms @Inject constructor() {
                     ))
                 }
             }
-            
+
             if (!swapped) break
         }
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             sortedIndices = array.indices.toSet(),
@@ -62,25 +62,25 @@ class SortingAlgorithms @Inject constructor() {
             swaps = swaps,
             description = "Sorting complete!"
         ))
-        
+
         return steps
     }
-    
+
     fun selectionSort(initialArray: List<Int>): List<AlgorithmStep> {
         val steps = mutableListOf<AlgorithmStep>()
         val array = initialArray.toMutableList()
         var comparisons = 0
         var swaps = 0
         val n = array.size
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             description = "Starting Selection Sort"
         ))
-        
+
         for (i in 0 until n - 1) {
             var minIdx = i
-            
+
             for (j in i + 1 until n) {
                 comparisons++
                 steps.add(AlgorithmStep(
@@ -92,18 +92,18 @@ class SortingAlgorithms @Inject constructor() {
                     swaps = swaps,
                     description = "Comparing ${array[minIdx]} and ${array[j]}"
                 ))
-                
+
                 if (array[j] < array[minIdx]) {
                     minIdx = j
                 }
             }
-            
+
             if (minIdx != i) {
                 swaps++
                 val temp = array[i]
                 array[i] = array[minIdx]
                 array[minIdx] = temp
-                
+
                 steps.add(AlgorithmStep(
                     array = array.toList(),
                     swappingIndices = setOf(i, minIdx),
@@ -114,7 +114,7 @@ class SortingAlgorithms @Inject constructor() {
                 ))
             }
         }
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             sortedIndices = array.indices.toSet(),
@@ -122,27 +122,27 @@ class SortingAlgorithms @Inject constructor() {
             swaps = swaps,
             description = "Sorting complete!"
         ))
-        
+
         return steps
     }
-    
+
     fun insertionSort(initialArray: List<Int>): List<AlgorithmStep> {
         val steps = mutableListOf<AlgorithmStep>()
         val array = initialArray.toMutableList()
         var comparisons = 0
         var swaps = 0
         val n = array.size
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             sortedIndices = setOf(0),
             description = "Starting Insertion Sort"
         ))
-        
+
         for (i in 1 until n) {
             val key = array[i]
             var j = i - 1
-            
+
             while (j >= 0) {
                 comparisons++
                 steps.add(AlgorithmStep(
@@ -154,16 +154,16 @@ class SortingAlgorithms @Inject constructor() {
                     swaps = swaps,
                     description = "Comparing ${array[j]} and $key"
                 ))
-                
+
                 if (array[j] <= key) break
-                
+
                 swaps++
                 array[j + 1] = array[j]
                 j--
             }
-            
+
             array[j + 1] = key
-            
+
             steps.add(AlgorithmStep(
                 array = array.toList(),
                 sortedIndices = (0..i).toSet(),
@@ -172,7 +172,7 @@ class SortingAlgorithms @Inject constructor() {
                 description = "Inserted $key at position ${j + 1}"
             ))
         }
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             sortedIndices = array.indices.toSet(),
@@ -180,108 +180,152 @@ class SortingAlgorithms @Inject constructor() {
             swaps = swaps,
             description = "Sorting complete!"
         ))
-        
+
         return steps
     }
-    
+
     fun mergeSort(initialArray: List<Int>): List<AlgorithmStep> {
         val steps = mutableListOf<AlgorithmStep>()
+        val array = initialArray.toMutableList()
         var comparisons = 0
         var swaps = 0
-        
+
         steps.add(AlgorithmStep(
-            array = initialArray,
+            array = array.toList(),
             description = "Starting Merge Sort"
         ))
-        
-        // Simplified merge sort for visualization
-        val result = mergeSortRecursive(initialArray, steps, comparisons, swaps)
-        
+
+        mergeSortRecursive(array, 0, array.size - 1, steps, comparisons, swaps)
+
         steps.add(AlgorithmStep(
-            array = result.first,
-            sortedIndices = result.first.indices.toSet(),
-            comparisons = result.second,
-            swaps = result.third,
+            array = array.toList(),
+            sortedIndices = array.indices.toSet(),
             description = "Sorting complete!"
         ))
-        
+
         return steps
     }
-    
+
     private fun mergeSortRecursive(
-        arr: List<Int>,
+        array: MutableList<Int>,
+        left: Int,
+        right: Int,
         steps: MutableList<AlgorithmStep>,
         comp: Int,
         sw: Int
-    ): Triple<List<Int>, Int, Int> {
-        if (arr.size <= 1) return Triple(arr, comp, sw)
-        
-        val mid = arr.size / 2
-        val left = mergeSortRecursive(arr.subList(0, mid), steps, comp, sw)
-        val right = mergeSortRecursive(arr.subList(mid, arr.size), steps, left.second, left.third)
-        
-        return merge(left.first, right.first, steps, right.second, right.third)
+    ): Pair<Int, Int> {
+        var currentComp = comp
+        var currentSw = sw
+
+        if (left < right) {
+            val mid = (left + right) / 2
+
+            val leftResult = mergeSortRecursive(array, left, mid, steps, currentComp, currentSw)
+            currentComp = leftResult.first
+            currentSw = leftResult.second
+
+            val rightResult = mergeSortRecursive(array, mid + 1, right, steps, currentComp, currentSw)
+            currentComp = rightResult.first
+            currentSw = rightResult.second
+
+            val mergeResult = merge(array, left, mid, right, steps, currentComp, currentSw)
+            currentComp = mergeResult.first
+            currentSw = mergeResult.second
+        }
+
+        return Pair(currentComp, currentSw)
     }
-    
+
     private fun merge(
-        left: List<Int>,
-        right: List<Int>,
+        array: MutableList<Int>,
+        left: Int,
+        mid: Int,
+        right: Int,
         steps: MutableList<AlgorithmStep>,
         comp: Int,
         sw: Int
-    ): Triple<List<Int>, Int, Int> {
-        var comparisons = comp
-        var swaps = sw
-        val result = mutableListOf<Int>()
+    ): Pair<Int, Int> {
+        var currentComp = comp
+        var currentSw = sw
+
+        val n1 = mid - left + 1
+        val n2 = right - mid
+
+        val leftArray = IntArray(n1)
+        val rightArray = IntArray(n2)
+
+        for (i in 0 until n1) leftArray[i] = array[left + i]
+        for (j in 0 until n2) rightArray[j] = array[mid + 1 + j]
+
         var i = 0
         var j = 0
-        
-        while (i < left.size && j < right.size) {
-            comparisons++
-            if (left[i] <= right[j]) {
-                result.add(left[i])
+        var k = left
+
+        while (i < n1 && j < n2) {
+            currentComp++
+            steps.add(AlgorithmStep(
+                array = array.toList(),
+                comparingIndices = setOf(left + i, mid + 1 + j),
+                description = "Comparing ${leftArray[i]} and ${rightArray[j]}",
+                comparisons = currentComp,
+                swaps = currentSw
+            ))
+
+            if (leftArray[i] <= rightArray[j]) {
+                array[k] = leftArray[i]
                 i++
             } else {
-                result.add(right[j])
+                array[k] = rightArray[j]
                 j++
             }
+            k++
         }
-        
-        result.addAll(left.subList(i, left.size))
-        result.addAll(right.subList(j, right.size))
-        
+
+        while (i < n1) {
+            array[k] = leftArray[i]
+            i++
+            k++
+        }
+
+        while (j < n2) {
+            array[k] = rightArray[j]
+            j++
+            k++
+        }
+
+        currentSw++
         steps.add(AlgorithmStep(
-            array = result,
-            comparisons = comparisons,
-            swaps = swaps,
-            description = "Merged two subarrays"
+            array = array.toList(),
+            description = "Merged subarray from index $left to $right",
+            comparisons = currentComp,
+            swaps = currentSw
         ))
-        
-        return Triple(result, comparisons, swaps)
+
+        return Pair(currentComp, currentSw)
     }
-    
+
     fun quickSort(initialArray: List<Int>): List<AlgorithmStep> {
         val steps = mutableListOf<AlgorithmStep>()
         val array = initialArray.toMutableList()
         var comparisons = 0
         var swaps = 0
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             description = "Starting Quick Sort"
         ))
-        
+
         quickSortRecursive(array, 0, array.size - 1, steps, comparisons, swaps)
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             sortedIndices = array.indices.toSet(),
             description = "Sorting complete!"
         ))
-        
+
         return steps
     }
-    
+
     private fun quickSortRecursive(
         array: MutableList<Int>,
         low: Int,
@@ -292,23 +336,23 @@ class SortingAlgorithms @Inject constructor() {
     ): Pair<Int, Int> {
         var comparisons = comp
         var swaps = sw
-        
+
         if (low < high) {
             val pivotResult = partition(array, low, high, steps, comparisons, swaps)
             val pi = pivotResult.first
             comparisons = pivotResult.second
             swaps = pivotResult.third
-            
+
             val leftResult = quickSortRecursive(array, low, pi - 1, steps, comparisons, swaps)
             val rightResult = quickSortRecursive(array, pi + 1, high, steps, leftResult.first, leftResult.second)
-            
+
             comparisons = rightResult.first
             swaps = rightResult.second
         }
-        
+
         return Pair(comparisons, swaps)
     }
-    
+
     private fun partition(
         array: MutableList<Int>,
         low: Int,
@@ -321,7 +365,7 @@ class SortingAlgorithms @Inject constructor() {
         var swaps = sw
         val pivot = array[high]
         var i = low - 1
-        
+
         for (j in low until high) {
             comparisons++
             steps.add(AlgorithmStep(
@@ -332,7 +376,7 @@ class SortingAlgorithms @Inject constructor() {
                 swaps = swaps,
                 description = "Comparing ${array[j]} with pivot $pivot"
             ))
-            
+
             if (array[j] < pivot) {
                 i++
                 if (i != j) {
@@ -340,7 +384,7 @@ class SortingAlgorithms @Inject constructor() {
                     val temp = array[i]
                     array[i] = array[j]
                     array[j] = temp
-                    
+
                     steps.add(AlgorithmStep(
                         array = array.toList(),
                         swappingIndices = setOf(i, j),
@@ -352,12 +396,12 @@ class SortingAlgorithms @Inject constructor() {
                 }
             }
         }
-        
+
         swaps++
         val temp = array[i + 1]
         array[i + 1] = array[high]
         array[high] = temp
-        
+
         steps.add(AlgorithmStep(
             array = array.toList(),
             swappingIndices = setOf(i + 1, high),
@@ -365,7 +409,7 @@ class SortingAlgorithms @Inject constructor() {
             swaps = swaps,
             description = "Pivot $pivot placed at position ${i + 1}"
         ))
-        
+
         return Triple(i + 1, comparisons, swaps)
     }
 

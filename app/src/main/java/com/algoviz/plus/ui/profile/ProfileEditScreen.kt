@@ -52,7 +52,7 @@ fun ProfileEditScreen(
     val isSaving by profileViewModel.isSaving.collectAsState()
     val errorMessage by profileViewModel.errorMessage.collectAsState()
     val context = LocalContext.current
-    
+
     var name by remember { mutableStateOf(userProfile.name) }
     var username by remember { mutableStateOf(userProfile.username) }
     var email by remember { mutableStateOf(userProfile.email) }
@@ -104,7 +104,7 @@ fun ProfileEditScreen(
             showCameraPermissionDeniedDialog = true
         }
     }
-    
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -133,7 +133,7 @@ fun ProfileEditScreen(
             hasInitializedForm = true
         }
     }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = androidx.compose.ui.res.painterResource(id = com.algoviz.plus.R.drawable.auth_bg1),
@@ -169,6 +169,7 @@ fun ProfileEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp)
         ) {
@@ -434,7 +435,7 @@ fun ProfileEditScreen(
 
             Spacer(modifier = Modifier.height(120.dp))
         }
-        
+
         // Avatar Photo Options Dialog
         if (showAvatarDialog) {
             AlertDialog(
@@ -499,7 +500,7 @@ fun ProfileEditScreen(
                                 }
                             }
                         }
-                        
+
                         // Camera Option
                         Surface(
                             onClick = {

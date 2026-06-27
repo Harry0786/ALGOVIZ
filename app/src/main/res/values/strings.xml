@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AlgoViz+</string>
+    <string name="default_web_client_id" translatable="false">755994556793-ra0a3m34q7etiinrlsum293hiq267ngd.apps.googleusercontent.com</string>
 </resources>

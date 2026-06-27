@@ -44,6 +44,8 @@ class AuthViewModel @Inject constructor(
     private val _isGoogleSignInUser = MutableStateFlow(false)
     val isGoogleSignInUser: StateFlow<Boolean> = _isGoogleSignInUser.asStateFlow()
 
+    private var pendingAuthOperation = false
+
     init {
         observeAuthState()
     }
@@ -53,29 +55,38 @@ class AuthViewModel @Inject constructor(
             getCurrentUserUseCase().collect { user ->
                 if (user != null) {
                     syncProfileCacheForCurrentUser(user)
+                    _uiState.value = AuthUiState.Authenticated(user)
+                    _isGoogleSignInUser.value = getIsGoogleSignInUserUseCase()
+                    return@collect
                 }
 
-                _uiState.value = when {
-                    user == null -> AuthUiState.Unauthenticated
-                    else -> AuthUiState.Authenticated(user)
+                // Avoid clobbering an in-flight sign-in with a transient null session emission.
+                if (pendingAuthOperation || _uiState.value is AuthUiState.Loading) {
+                    return@collect
                 }
-                // Update Google sign-in user flag
-                _isGoogleSignInUser.value = getIsGoogleSignInUserUseCase()
+
+                _uiState.value = AuthUiState.Unauthenticated
+                _isGoogleSignInUser.value = false
             }
         }
     }
     
     fun login(email: String, password: String) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Loading
-            loginUseCase(email, password)
-                .onSuccess { user ->
-                    _uiState.value = AuthUiState.Authenticated(user)
-                }
-                .onFailure { error ->
-                    Timber.e(error, "Login failed")
-                    _uiState.value = AuthUiState.Error(error.message ?: "Login failed")
-                }
+            pendingAuthOperation = true
+            try {
+                _uiState.value = AuthUiState.Loading
+                loginUseCase(email, password)
+                    .onSuccess { user ->
+                        _uiState.value = AuthUiState.Authenticated(user)
+                    }
+                    .onFailure { error ->
+                        Timber.e(error, "Login failed")
+                        _uiState.value = AuthUiState.Error(error.message ?: "Login failed")
+                    }
+            } finally {
+                pendingAuthOperation = false
+            }
         }
     }
     
@@ -86,42 +97,52 @@ class AuthViewModel @Inject constructor(
         }
         
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Loading
-            registerUseCase(email, password)
-                .onSuccess { result ->
-                    result.user?.let { user ->
-                        preferencesManager.saveProfileEmail(user.email)
-                        _uiState.value = AuthUiState.Authenticated(user)
-                        return@onSuccess
-                    }
+            pendingAuthOperation = true
+            try {
+                _uiState.value = AuthUiState.Loading
+                registerUseCase(email, password)
+                    .onSuccess { result ->
+                        result.user?.let { user ->
+                            preferencesManager.saveProfileEmail(user.email)
+                            _uiState.value = AuthUiState.Authenticated(user)
+                            return@onSuccess
+                        }
 
-                    if (result.requiresEmailVerification) {
-                        _uiState.value = AuthUiState.EmailVerificationRequired(
-                            "Account created. Check your email to verify your account before signing in."
-                        )
-                        return@onSuccess
-                    }
+                        if (result.requiresEmailVerification) {
+                            _uiState.value = AuthUiState.EmailVerificationRequired(
+                                "Account created. Check your email to verify your account before signing in."
+                            )
+                            return@onSuccess
+                        }
 
-                    _uiState.value = AuthUiState.Error("Registration completed, but no user session was created.")
-                }
-                .onFailure { error ->
-                    Timber.e(error, "Registration failed")
-                    _uiState.value = AuthUiState.Error(error.message ?: "Registration failed")
-                }
+                        _uiState.value = AuthUiState.Error("Registration completed, but no user session was created.")
+                    }
+                    .onFailure { error ->
+                        Timber.e(error, "Registration failed")
+                        _uiState.value = AuthUiState.Error(error.message ?: "Registration failed")
+                    }
+            } finally {
+                pendingAuthOperation = false
+            }
         }
     }
     
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Loading
-            googleSignInUseCase(idToken)
-                .onSuccess { user ->
-                    _uiState.value = AuthUiState.Authenticated(user)
-                }
-                .onFailure { error ->
-                    Timber.e(error, "Google sign-in failed")
-                    _uiState.value = AuthUiState.Error(error.message ?: "Google sign-in failed")
-                }
+            pendingAuthOperation = true
+            try {
+                _uiState.value = AuthUiState.Loading
+                googleSignInUseCase(idToken)
+                    .onSuccess { user ->
+                        _uiState.value = AuthUiState.Authenticated(user)
+                    }
+                    .onFailure { error ->
+                        Timber.e(error, "Google sign-in failed")
+                        _uiState.value = AuthUiState.Error(error.message ?: "Google sign-in failed")
+                    }
+            } finally {
+                pendingAuthOperation = false
+            }
         }
     }
     

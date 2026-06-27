@@ -76,13 +76,9 @@ jobs:
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           SUPABASE_URL_RELEASE=${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jbmdxZXVlaHJ6a3dqc2xyaGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNzU4NTAsImV4cCI6MjA5MTk1MTg1MH0.j5YtEH85fiDx2XJBpyBNT1bsQl81Axihb9uZDtDIO-g
-          GOOGLE_WEB_CLIENT_ID=139161182086-rk5tes8e2hdhvkc698sd1rkb7i7j0lrf.apps.googleusercontent.com
+          SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+          GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           EOF
-
-      - name: Show generated local.properties
-        shell: bash
-        run: cat local.properties
 
       - name: Validate auth release config
         shell: bash
@@ -101,6 +97,8 @@ jobs:
             echo "GOOGLE_WEB_CLIENT_ID is missing from CI local.properties"
             exit 1
           fi
+
+          echo "Release auth config validated (secrets are not printed)."
 
       - name: Resolve release metadata
         id: meta

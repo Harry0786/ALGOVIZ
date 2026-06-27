@@ -73,7 +73,9 @@ fun CreateRoomScreen(
     )
 
     Scaffold(
-        modifier = Modifier.background(backgroundBrush),
+        modifier = Modifier
+            .background(backgroundBrush)
+            .imePadding(),
         containerColor = Color.Transparent,
         topBar = {
             Surface(color = Color(0xFF1A1344).copy(alpha = 0.95f)) {

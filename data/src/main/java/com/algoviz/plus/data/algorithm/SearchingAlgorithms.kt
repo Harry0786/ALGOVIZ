@@ -168,7 +168,7 @@ class SearchingAlgorithms @Inject constructor() {
                     comparingIndices = setOf(checkIndex),
                     currentIndex = checkIndex,
                     comparisons = comparisons,
-                    description = "Jumping to block ending at index $checkIndex"
+                    description = "Value at index $checkIndex is ${array[checkIndex]}, still less than $target. Jumping..."
                 )
             )
             prev = curr
@@ -246,39 +246,41 @@ class SearchingAlgorithms @Inject constructor() {
                 return steps
             }
 
-            val position = low + ((target - array[low]) * (high - low) / (array[high] - array[low]))
+            val position = low + (((target - array[low]).toLong() * (high - low)) / (array[high] - array[low])).toInt()
             comparisons++
+
+            val safePosition = position.coerceIn(low, high)
 
             steps.add(
                 AlgorithmStep(
                     array = array,
-                    comparingIndices = setOf(position),
-                    currentIndex = position,
+                    comparingIndices = setOf(safePosition),
+                    currentIndex = safePosition,
                     comparisons = comparisons,
-                    description = "Estimated probe position is $position"
+                    description = "Estimated probe position is $safePosition"
                 )
             )
 
             when {
-                array[position] == target -> {
+                array[safePosition] == target -> {
                     steps.add(
                         AlgorithmStep(
                             array = array,
-                            sortedIndices = setOf(position),
-                            currentIndex = position,
+                            sortedIndices = setOf(safePosition),
+                            currentIndex = safePosition,
                             comparisons = comparisons,
-                            description = "Found $target at index $position"
+                            description = "Found $target at index $safePosition"
                         )
                     )
                     return steps
                 }
 
-                array[position] < target -> {
-                    low = position + 1
+                array[safePosition] < target -> {
+                    low = safePosition + 1
                 }
 
                 else -> {
-                    high = position - 1
+                    high = safePosition - 1
                 }
             }
         }

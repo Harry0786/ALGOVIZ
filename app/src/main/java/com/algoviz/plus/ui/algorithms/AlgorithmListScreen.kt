@@ -1,25 +1,54 @@
 package com.algoviz.plus.ui.algorithms
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.algoviz.plus.R
 import com.algoviz.plus.domain.model.Algorithm
 import com.algoviz.plus.domain.model.AlgorithmCategory
 
@@ -33,81 +62,102 @@ fun AlgorithmListScreen(
     val algorithms by viewModel.algorithms.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1344),
-                        Color(0xFF2D1B69),
-                        Color(0xFF3D2080)
-                    )
-                )
-            )
+            .background(Color.Black)
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.bg1),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alpha = 0.30f,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.18f))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // Top Bar
+            Spacer(modifier = Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                IconButton(onClick = onBackClick) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(34.dp)
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White
+                        tint = Color(0xFFE9E9E9)
                     )
                 }
-                
+
                 Text(
                     text = "Algorithms",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFFEDEDED),
                     modifier = Modifier.weight(1f)
                 )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Search Bar
-            OutlinedTextField(
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
                 placeholder = {
-                    Text("Search algorithms...", color = Color.White.copy(alpha = 0.5f))
+                    Text(
+                        text = "Search algorithms...",
+                        color = Color(0xFF5D5D5D),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp
+                    )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = Color.White.copy(alpha = 0.7f)
+                        tint = Color(0xFF505050)
                     )
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF5EEAD4),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    cursorColor = Color(0xFF5EEAD4)
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF1F1F1),
+                    unfocusedContainerColor = Color(0xFFF1F1F1),
+                    focusedTextColor = Color(0xFF171717),
+                    unfocusedTextColor = Color(0xFF171717),
+                    cursorColor = Color(0xFF171717),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(32.dp)
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // Category Filters
+
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp)
             ) {
                 item {
                     CategoryChip(
@@ -116,7 +166,7 @@ fun AlgorithmListScreen(
                         onClick = { viewModel.onCategorySelected(null) }
                     )
                 }
-                
+
                 items(AlgorithmCategory.entries) { category ->
                     CategoryChip(
                         label = category.displayName,
@@ -125,14 +175,13 @@ fun AlgorithmListScreen(
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Algorithms List
+
+            Spacer(modifier = Modifier.height(18.dp))
+
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(algorithms) { algorithm ->
                     AlgorithmCard(
@@ -140,7 +189,7 @@ fun AlgorithmListScreen(
                         onClick = { onAlgorithmClick(algorithm.id) }
                     )
                 }
-                
+
                 if (algorithms.isEmpty()) {
                     item {
                         Box(
@@ -151,7 +200,7 @@ fun AlgorithmListScreen(
                         ) {
                             Text(
                                 text = "No algorithms found",
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = Color(0xFFB2B2B2),
                                 fontSize = 16.sp
                             )
                         }
@@ -168,22 +217,45 @@ private fun CategoryChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    FilterChip(
-        selected = isSelected,
-        onClick = onClick,
-        label = {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (isSelected) Color(0xFFF3F3F3) else Color(0xFF1E2024),
+        modifier = Modifier
+            .height(44.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 22.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
                 text = label,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = if (isSelected) Color(0xFF101010) else Color(0xFFC8C8C8)
             )
-        },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = Color.White.copy(alpha = 0.1f),
-            labelColor = Color.White.copy(alpha = 0.7f),
-            selectedContainerColor = Color(0xFF5EEAD4),
-            selectedLabelColor = Color(0xFF1A1344)
+        }
+    }
+}
+
+@Composable
+private fun DifficultyPill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xFF2D3035)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier
+                .widthIn(max = 136.dp)
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = difficultyFontSize(label),
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFD8D8D8)
         )
-    )
+    }
 }
 
 @Composable
@@ -193,60 +265,64 @@ private fun AlgorithmCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.08f),
-        modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF171717).copy(alpha = 0.90f),
+        border = BorderStroke(2.dp, Color(0xFFE6E6E6)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(252.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = algorithm.name,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(algorithm.difficultyLevel.color)
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = algorithm.difficultyLevel.displayName,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        text = algorithm.name,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF1F1F1),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 10.dp)
                     )
+
+                    DifficultyPill(label = algorithm.difficultyLevel.displayName.uppercase())
                 }
+
+                Text(
+                    text = algorithm.description,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 18.sp,
+                    color = Color(0xFFD0D0D0),
+                    lineHeight = 30.sp,
+                    modifier = Modifier.height(62.dp)
+                )
             }
-            
-            Text(
-                text = algorithm.description,
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.7f),
-                lineHeight = 20.sp
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 ComplexityInfo(
-                    label = "Time",
-                    value = algorithm.timeComplexity.average
+                    label = "TIME COMPLEXITY",
+                    value = algorithm.timeComplexity.average,
+                    modifier = Modifier.weight(1f)
                 )
                 ComplexityInfo(
-                    label = "Space",
-                    value = algorithm.spaceComplexity.average
+                    label = "SPACE COMPLEXITY",
+                    value = algorithm.spaceComplexity.average,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -254,18 +330,50 @@ private fun AlgorithmCard(
 }
 
 @Composable
-private fun ComplexityInfo(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = Color.White.copy(alpha = 0.5f)
-        )
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF5EEAD4)
-        )
+private fun ComplexityInfo(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFF2F2F2)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(95.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111111)
+            )
+            Text(
+                text = value,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = complexityFontSize(value),
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF101010)
+            )
+        }
     }
+}
+
+private fun complexityFontSize(value: String) = when {
+    value.length >= 14 -> 19.sp
+    value.length >= 11 -> 22.sp
+    value.length >= 9 -> 24.sp
+    else -> 27.sp
+}
+
+private fun difficultyFontSize(value: String) = when {
+    value.length >= 12 -> 11.sp
+    value.length >= 10 -> 12.sp
+    else -> 13.sp
 }

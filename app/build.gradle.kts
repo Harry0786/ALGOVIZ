@@ -1,13 +1,16 @@
-﻿plugins {
+import java.util.Properties
+
+
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
 }
 
-import java.util.Properties
 
 val localProperties = Properties().apply {
     val propertiesFile = rootProject.file("local.properties")
@@ -25,6 +28,13 @@ fun toBuildConfigString(value: String): String {
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
     return "\"$escaped\""
+}
+
+fun normalizeSupabaseUrl(rawValue: String): String {
+    val trimmed = rawValue.trim().trimEnd('/')
+    return trimmed
+        .removeSuffix("/rest/v1")
+        .removeSuffix("/rest/v1/")
 }
 
 android {
@@ -58,7 +68,7 @@ android {
         versionName = "2.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -75,11 +85,15 @@ android {
 
             val debugSupabaseUrl = readLocalProperty(
                 "SUPABASE_URL_DEBUG",
-                readLocalProperty("SUPABASE_URL", "https://dev.supabase.co")
+                readLocalProperty("SUPABASE_URL", "https://zosawqjebxkjppwtkegx.supabase.co")
             )
-            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(debugSupabaseUrl))
+            buildConfigField(
+                "String",
+                "SUPABASE_URL",
+                toBuildConfigString(normalizeSupabaseUrl(debugSupabaseUrl))
+            )
         }
-        
+
         create("staging") {
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-STAGING"
@@ -93,11 +107,15 @@ android {
 
             val stagingSupabaseUrl = readLocalProperty(
                 "SUPABASE_URL_STAGING",
-                readLocalProperty("SUPABASE_URL", "https://dev.supabase.co")
+                readLocalProperty("SUPABASE_URL", "https://zosawqjebxkjppwtkegx.supabase.co")
             )
-            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(stagingSupabaseUrl))
+            buildConfigField(
+                "String",
+                "SUPABASE_URL",
+                toBuildConfigString(normalizeSupabaseUrl(stagingSupabaseUrl))
+            )
         }
-        
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -111,9 +129,13 @@ android {
 
             val releaseSupabaseUrl = readLocalProperty(
                 "SUPABASE_URL_RELEASE",
-                readLocalProperty("SUPABASE_URL", "")
+                readLocalProperty("SUPABASE_URL", "https://zosawqjebxkjppwtkegx.supabase.co")
             )
-            buildConfigField("String", "SUPABASE_URL", toBuildConfigString(releaseSupabaseUrl))
+            buildConfigField(
+                "String",
+                "SUPABASE_URL",
+                toBuildConfigString(normalizeSupabaseUrl(releaseSupabaseUrl))
+            )
         }
     }
 
@@ -122,9 +144,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -160,7 +179,7 @@ dependencies {
     implementation(libs.bundles.compose)
     implementation(libs.bundles.lifecycle)
     implementation(libs.compose.navigation)
-    
+
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
@@ -168,9 +187,9 @@ dependencies {
     implementation(libs.bundles.supabase)
     implementation(libs.coil)
     implementation(libs.slf4j.nop)
-    
+
     implementation(libs.timber)
-    
+
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 

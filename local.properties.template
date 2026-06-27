@@ -1,5 +1,5 @@
-## This file must be in your local machine only
-## Copy this file to local.properties and add your values
+## This file must be on your local machine only.
+## Copy this file to local.properties and add your values.
 
 # Android SDK location
 sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
@@ -15,13 +15,20 @@ STAGING_STORE_PASSWORD=
 STAGING_KEY_ALIAS=
 STAGING_KEY_PASSWORD=
 
-# API Keys
-SUPABASE_URL=
+# Supabase (ALGOVIZ+ project: zosawqjebxkjppwtkegx)
+SUPABASE_URL=https://zosawqjebxkjppwtkegx.supabase.co
 SUPABASE_KEY=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-GOOGLE_WEB_CLIENT_ID=
+
+# Google OAuth — use the Web client ID (AlgoViz Web client), NOT the Android client ID
+GOOGLE_WEB_CLIENT_ID=755994556793-ra0a3m34q7etiinrlsum293hiq267ngd.apps.googleusercontent.com
+
+# Optional per-build-type overrides
+SUPABASE_URL_DEBUG=
+SUPABASE_URL_STAGING=
+SUPABASE_URL_RELEASE=
 
 # MCP (optional, for VS Code Supabase MCP server)
-SUPABASE_PROJECT_REF=
+SUPABASE_PROJECT_REF=zosawqjebxkjppwtkegx
 SUPABASE_ACCESS_TOKEN=

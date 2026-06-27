@@ -30,6 +30,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.ComponentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -52,6 +54,7 @@ import com.algoviz.plus.ui.profile.ProfileViewModel
 import com.algoviz.plus.ui.studyrooms.CreateRoomScreen
 import com.algoviz.plus.ui.studyrooms.StudyRoomsScreen
 import com.algoviz.plus.ui.studyrooms.chat.ChatRoomScreen
+import com.algoviz.plus.ui.notifications.InAppNotificationHost
 import com.algoviz.plus.update.AppUpdateDialog
 
 private const val MIN_SPLASH_DURATION_MS = 1200L
@@ -72,10 +75,11 @@ private const val UNAUTH_REDIRECT_GRACE_MS = 1200L
 
 @Composable
 fun RootNavHost(
-    authViewModel: AuthViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel(),
     isPasswordResetLink: Boolean = false
 ) {
+    val activity = LocalContext.current as ComponentActivity
+    val authViewModel: AuthViewModel = hiltViewModel(activity)
+    val profileViewModel: ProfileViewModel = hiltViewModel()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -85,6 +89,13 @@ fun RootNavHost(
     val latestAuthState by rememberUpdatedState(authState)
     var splashFinished by remember { mutableStateOf(false) }
     var pendingResetFlow by remember { mutableStateOf(isPasswordResetLink) }
+    var initialAuthResolved by remember { mutableStateOf(false) }
+
+    LaunchedEffect(authState) {
+        if (authState is AuthUiState.Authenticated || authState is AuthUiState.Unauthenticated) {
+            initialAuthResolved = true
+        }
+    }
 
     val navigateBackToMain = {
         if (!navController.popBackStack()) {
@@ -109,7 +120,7 @@ fun RootNavHost(
         splashFinished = true
     }
 
-    val showSplash = !splashFinished || authState is AuthUiState.Loading
+    val showSplash = !splashFinished || !initialAuthResolved
     val hasProfileSnapshot = userProfile.email != "user@algoviz.com" ||
         userProfile.name != "AlgoViz User" ||
         userProfile.username.isNotBlank() ||
@@ -218,6 +229,7 @@ fun RootNavHost(
                     backgroundRes = com.algoviz.plus.R.drawable.auth_bg1,
                     logoRes = com.algoviz.plus.R.drawable.auth_logo_circle,
                     navController = navController,
+                    authViewModel = authViewModel,
                     onAuthSuccess = {
                         // Navigation handled by LaunchedEffect above
                     }
@@ -345,6 +357,15 @@ fun RootNavHost(
 
             // Overlay: show update dialog if a newer version is available
             AppUpdateDialog()
+
+            InAppNotificationHost(
+                modifier = Modifier.fillMaxSize(),
+                onOpenChatRoom = { roomId ->
+                    navController.navigate("$ROUTE_CHAT/$roomId") {
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
     }
 }

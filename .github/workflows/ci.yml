@@ -1,0 +1,94 @@
+name: CI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches:
+      - master
+      - Shivanshs
+  pull_request:
+    branches:
+      - master
+      - Shivanshs
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Create local.properties for CI
+        shell: bash
+        run: |
+          SDK_DIR="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK_DIR" ]; then
+            echo "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
+            exit 1
+          fi
+
+          cat > local.properties <<EOF
+          sdk.dir=$SDK_DIR
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+          GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          EOF
+
+      - name: Validate CI secrets
+        shell: bash
+        run: |
+          missing=0
+          for key in SUPABASE_URL SUPABASE_KEY GOOGLE_WEB_CLIENT_ID; do
+            if ! grep -q "^${key}=[^[:space:]]\\+" local.properties; then
+              echo "::error::Missing GitHub secret: $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Add SUPABASE_URL, SUPABASE_KEY, and GOOGLE_WEB_CLIENT_ID in repo Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: algoviz-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test --no-daemon --stacktrace

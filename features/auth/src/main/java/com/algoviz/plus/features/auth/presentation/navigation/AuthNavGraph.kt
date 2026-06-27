@@ -30,6 +30,7 @@ fun NavGraphBuilder.authNavGraph(
     @DrawableRes backgroundRes: Int,
     @DrawableRes logoRes: Int,
     navController: NavHostController,
+    authViewModel: AuthViewModel,
     onAuthSuccess: () -> Unit
 ) {
     navigation(
@@ -46,7 +47,8 @@ fun NavGraphBuilder.authNavGraph(
                             inclusive = false
                         }
                     }
-                }
+                },
+                viewModel = authViewModel
             )
         }
         
@@ -59,7 +61,8 @@ fun NavGraphBuilder.authNavGraph(
                             inclusive = true
                         }
                     }
-                }
+                },
+                viewModel = authViewModel
             )
         }
 
@@ -73,7 +76,8 @@ fun NavGraphBuilder.authNavGraph(
                         }
                         launchSingleTop = true
                     }
-                }
+                },
+                viewModel = authViewModel
             )
         }
     }
@@ -84,10 +88,10 @@ fun AuthNavigation(
     @DrawableRes backgroundRes: Int,
     @DrawableRes logoRes: Int,
     navController: NavHostController,
-    onAuthSuccess: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel,
+    onAuthSuccess: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
     
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -112,6 +116,7 @@ fun AuthNavigation(
             backgroundRes = backgroundRes,
             logoRes = logoRes,
             navController = navController,
+            authViewModel = authViewModel,
             onAuthSuccess = onAuthSuccess
         )
     }

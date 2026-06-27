@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -33,7 +34,10 @@ android {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val googleWebClientId = readLocalProperty("GOOGLE_WEB_CLIENT_ID", "")
+        val googleWebClientId = readLocalProperty(
+            "GOOGLE_WEB_CLIENT_ID",
+            "755994556793-ra0a3m34q7etiinrlsum293hiq267ngd.apps.googleusercontent.com"
+        )
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", toBuildConfigString(googleWebClientId))
     }
 
@@ -45,8 +49,7 @@ android {
     kotlinOptions {
         jvmTarget = "17"
         freeCompilerArgs += listOf(
-            "-opt-in=kotlin.RequiresOptIn",
-            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+            "-opt-in=kotlin.RequiresOptIn"
         )
     }
 
@@ -55,9 +58,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
-    }
 }
 
 dependencies {
@@ -82,7 +82,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.auth)
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     implementation(libs.timber)

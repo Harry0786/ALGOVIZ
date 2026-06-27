@@ -6,9 +6,9 @@ import com.algoviz.plus.BuildConfig
 import com.algoviz.plus.core.common.utils.UserIdentityUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.SessionStatus
-import io.github.jan.supabase.gotrue.user.UserInfo
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.delay
@@ -119,11 +119,14 @@ class ProfileRemoteDataSource @Inject constructor(
 
             val sessionStatus = supabaseClient.auth.sessionStatus.value
             Timber.d("Auth Debug [Attempt $attempt] - sessionStatus: $sessionStatus")
-            
+
             val statusUser = when (sessionStatus) {
                 is SessionStatus.Authenticated -> {
                     Timber.d("Auth Debug [Attempt $attempt] - sessionStatus is Authenticated, user: ${sessionStatus.session.user?.id ?: "null"}")
                     sessionStatus.session.user
+                }
+                is SessionStatus.Initializing -> {
+                    supabaseClient.auth.currentUserOrNull()
                 }
                 else -> {
                     Timber.d("Auth Debug [Attempt $attempt] - sessionStatus is NOT Authenticated: ${sessionStatus::class.simpleName}")
@@ -136,7 +139,7 @@ class ProfileRemoteDataSource @Inject constructor(
             Timber.d("Auth Debug [Attempt $attempt] - currentSessionOrNull: ${session?.user?.id ?: "null"}")
             if (session != null) {
                 if (session.user != null) return session.user
-                
+
                 Timber.d("Auth Debug [Attempt $attempt] - Session exists but user is null, trying retrieveUserForCurrentSession...")
                 val retrieved = runCatching {
                     supabaseClient.auth.retrieveUserForCurrentSession(updateSession = true)
@@ -145,14 +148,14 @@ class ProfileRemoteDataSource @Inject constructor(
                 }.onFailure {
                     Timber.e(it, "Auth Debug [Attempt $attempt] - retrieveUserForCurrentSession failed")
                 }.getOrNull()
-                
+
                 if (retrieved != null) return retrieved
             } else {
                 Timber.d("Auth Debug [Attempt $attempt] - No session found, waiting 100ms and retrying...")
                 delay(100) // Give auth time to load from storage
             }
         }
-        
+
         Timber.w("Auth Debug - All 5 resolution attempts failed, no authenticated user found")
         return null
     }
@@ -162,7 +165,7 @@ class ProfileRemoteDataSource @Inject constructor(
     suspend fun uploadProfileImage(imageUri: Uri): Result<String> {
         return try {
             Timber.d("Avatar Upload - Starting upload process")
-            val uid = getCurrentUserId().also { 
+            val uid = getCurrentUserId().also {
                 Timber.d("Avatar Upload - Resolved user ID: ${it ?: "null"}")
             }
             if (uid == null) {
@@ -170,19 +173,21 @@ class ProfileRemoteDataSource @Inject constructor(
                 Timber.e("Avatar Upload - FAILED: getCurrentUserId returned null. Auth state: currentUserOrNull=${supabaseClient.auth.currentUserOrNull()}, sessionStatus=${supabaseClient.auth.sessionStatus.value}")
                 return Result.failure(Exception(errorMsg))
             }
-            
+
             val objectPath = "$PROFILE_IMAGES_PATH/$uid.jpg"
             Timber.d("Avatar Upload - Upload path: $objectPath")
             val previousObjectPath = getExistingAvatarObjectPath(uid)
-            
+
             val bytes = appContext.contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
                 ?: return Result.failure(Exception("Unable to read selected image"))
-            
+
             Timber.d("Avatar Upload - Image bytes read: ${bytes.size}")
 
             supabaseClient.storage
                 .from(PROFILE_IMAGES_BUCKET)
-                .upload(objectPath, bytes, upsert = true)
+                .upload(objectPath, bytes) {
+                    upsert = true
+                }
 
             Timber.d("Avatar Upload - Upload to storage completed successfully")
 
@@ -221,8 +226,8 @@ class ProfileRemoteDataSource @Inject constructor(
 
             // Metadata sync is best-effort; profile table persistence remains the source of truth.
             runCatching {
-                supabaseClient.auth.modifyUser {
-                    data {
+                supabaseClient.auth.updateUser {
+                    data = buildJsonObject {
                         put("name", profile.name)
                         put("username", profile.username)
                         put("profileEmail", profile.email)

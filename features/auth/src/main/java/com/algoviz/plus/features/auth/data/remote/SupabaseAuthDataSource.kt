@@ -1,16 +1,15 @@
 package com.algoviz.plus.features.auth.data.remote
 
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.OtpType
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.providers.Google
-import io.github.jan.supabase.gotrue.providers.builtin.Email
-import io.github.jan.supabase.gotrue.providers.builtin.IDToken
-import io.github.jan.supabase.gotrue.SessionStatus
-import io.github.jan.supabase.gotrue.user.UserInfo
+import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import javax.inject.Inject
@@ -37,8 +36,8 @@ class SupabaseAuthDataSource @Inject constructor(
                     // Session is authenticated, use the user from session or fallback to current user
                     status.session.user ?: currentUser ?: lastKnownUser
                 }
-                is SessionStatus.LoadingFromStorage -> {
-                    // Session is loading from storage, keep the last authenticated user
+                is SessionStatus.Initializing -> {
+                    // Session is initializing (loading from storage), keep the last authenticated user
                     currentUser ?: lastKnownUser
                 }
                 is SessionStatus.NotAuthenticated -> {
@@ -63,7 +62,6 @@ class SupabaseAuthDataSource @Inject constructor(
 
             resolvedUser
         }
-            .debounce(300) // Debounce for 300ms to prevent rapid navigation on transient states
             .distinctUntilChanged { old, new -> old?.id == new?.id }
     }
 
@@ -251,7 +249,7 @@ class SupabaseAuthDataSource @Inject constructor(
                 this.password = currentPassword
             }
 
-            supabaseClient.auth.modifyUser {
+            supabaseClient.auth.updateUser {
                 this.password = newPassword
             }
             Result.success(Unit)
@@ -267,7 +265,7 @@ class SupabaseAuthDataSource @Inject constructor(
                 return Result.failure(Exception("No authenticated user"))
             }
 
-            supabaseClient.auth.modifyUser {
+            supabaseClient.auth.updateUser {
                 this.password = newPassword
             }
             Result.success(Unit)
