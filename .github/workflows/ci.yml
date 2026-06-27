@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-debug:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,6 +34,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Create local.properties for CI
         shell: bash
@@ -58,11 +61,6 @@ jobs:
           SUPABASE_KEY=$SUPABASE_KEY
           GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID
           EOF
-
-          if [ -z "$SECRET_SUPABASE_KEY" ]; then
-            echo "SUPABASE_KEY secret is not set — using CI placeholder for compile-only build."
-            echo "Add SUPABASE_KEY in Settings → Secrets and variables → Actions for production-like CI."
-          fi
 
       - name: Build debug APK
         shell: bash
@@ -70,51 +68,14 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
+      - name: Run debug unit tests
+        shell: bash
+        run: |
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: algoviz-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Create local.properties for CI
-        shell: bash
-        env:
-          SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SECRET_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          SECRET_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
-        run: |
-          SDK_DIR="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          if [ -z "$SDK_DIR" ]; then
-            echo "ANDROID_SDK_ROOT / ANDROID_HOME not found on runner"
-            exit 1
-          fi
-
-          SUPABASE_URL="${SECRET_SUPABASE_URL:-$DEFAULT_SUPABASE_URL}"
-          SUPABASE_KEY="${SECRET_SUPABASE_KEY:-$DEFAULT_SUPABASE_KEY}"
-          GOOGLE_WEB_CLIENT_ID="${SECRET_GOOGLE_WEB_CLIENT_ID:-$DEFAULT_GOOGLE_WEB_CLIENT_ID}"
-
-          cat > local.properties <<EOF
-          sdk.dir=$SDK_DIR
-          SUPABASE_URL=$SUPABASE_URL
-          SUPABASE_KEY=$SUPABASE_KEY
-          GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID
-          EOF
-
-      - name: Run unit tests
-        shell: bash
-        run: |
-          chmod +x ./gradlew
-          ./gradlew test --no-daemon --stacktrace
