@@ -9,7 +9,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -30,6 +29,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -407,10 +408,11 @@ private fun SplashScreen() {
         showFinalFrame = true
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val splashWidth = maxWidth
-        val splashHeight = maxHeight
+    val configuration = LocalConfiguration.current
+    val splashWidth = configuration.screenWidthDp.dp
+    val splashHeight = configuration.screenHeightDp.dp
 
+    Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = com.algoviz.plus.R.drawable.sp1),
             contentDescription = "Splash Screen Frame 1",

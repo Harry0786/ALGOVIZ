@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -17,7 +18,7 @@ import kotlinx.serialization.json.put
 import kotlin.OptIn
 import javax.inject.Inject
 
-@OptIn(SupabaseExperimental::class)
+@OptIn(SupabaseExperimental::class, InternalSerializationApi::class)
 @HiltViewModel
 class AdminAppUpdateViewModel @Inject constructor(
     private val supabaseClient: SupabaseClient

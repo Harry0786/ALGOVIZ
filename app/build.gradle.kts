@@ -8,8 +8,9 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
+import java.util.Properties
 
-val localProperties = java.util.Properties().apply {
+val localProperties = Properties().apply {
     val propertiesFile = rootProject.file("local.properties")
     if (propertiesFile.exists()) {
         propertiesFile.inputStream().use(::load)

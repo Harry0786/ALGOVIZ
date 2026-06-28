@@ -267,6 +267,10 @@ class ProfileViewModel @Inject constructor(
         if (raw.isBlank()) return fallback
 
         return when {
+            raw.contains("Could not find the table", ignoreCase = true) &&
+                raw.contains("user_profiles", ignoreCase = true) -> {
+                "Profile database table is missing. Run scripts/setup_user_profiles.sql in Supabase SQL Editor."
+            }
             raw.contains("row-level security policy", ignoreCase = true) -> {
                 "Profile save is blocked by database permissions. Please apply the latest recovery SQL and try again."
             }

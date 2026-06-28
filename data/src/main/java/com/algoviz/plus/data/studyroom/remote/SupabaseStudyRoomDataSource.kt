@@ -29,16 +29,18 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
+import kotlin.OptIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-@OptIn(SupabaseExperimental::class)
+@OptIn(SupabaseExperimental::class, InternalSerializationApi::class)
 class SupabaseStudyRoomDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {

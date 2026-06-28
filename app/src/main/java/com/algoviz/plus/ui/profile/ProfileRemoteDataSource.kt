@@ -10,9 +10,11 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.annotations.SupabaseExperimental
+import io.github.jan.supabase.postgrest.exception.PostgrestRestException
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.delay
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -21,9 +23,11 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import timber.log.Timber
+import kotlin.OptIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(SupabaseExperimental::class, InternalSerializationApi::class)
 @Singleton
 class ProfileRemoteDataSource @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -83,6 +87,91 @@ class ProfileRemoteDataSource @Inject constructor(
         )
     }
 
+    private fun JsonObject.avatarFromMetadata(): String? {
+        return normalizeAvatarUrl(
+            valueOrNull("avatarUrl")
+                ?: valueOrNull("avatar_url")
+                ?: valueOrNull("picture")
+        )
+    }
+
+    private fun isMissingUserProfilesTable(error: Throwable): Boolean {
+        val message = generateSequence(error) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+        return message.contains("user_profiles", ignoreCase = true) &&
+            (
+                message.contains("Could not find the table", ignoreCase = true) ||
+                    message.contains("schema cache", ignoreCase = true) ||
+                    message.contains("42P01", ignoreCase = true)
+                )
+    }
+
+    private suspend fun fetchUserProfileRow(uid: String): UserProfileRow? {
+        return try {
+            userProfilesTable.select {
+                filter {
+                    eq("user_id", uid)
+                }
+                limit(1)
+            }.decodeSingleOrNull<UserProfileRow>()
+        } catch (error: PostgrestRestException) {
+            if (isMissingUserProfilesTable(error)) {
+                Timber.w("user_profiles table missing in Supabase; using auth metadata fallback")
+                null
+            } else {
+                throw error
+            }
+        }
+    }
+
+    private fun buildProfileFromAuthMetadata(user: UserInfo): UserProfile? {
+        val metadata = user.userMetadata ?: return null
+
+        return UserProfile(
+            name = UserIdentityUtils.resolveDisplayName(
+                email = user.email,
+                metadataName = metadata.valueOrNull("name"),
+                metadataFullName = metadata.valueOrNull("full_name"),
+                metadataUserName = metadata.valueOrNull("user_name"),
+                metadataPreferredUsername = metadata.valueOrNull("preferred_username"),
+                metadataGivenName = metadata.valueOrNull("given_name")
+            ),
+            username = UserIdentityUtils.resolveUsername(
+                email = user.email,
+                metadataUsername = metadata.valueOrNull("username"),
+                metadataUserName = metadata.valueOrNull("user_name"),
+                metadataPreferredUsername = metadata.valueOrNull("preferred_username")
+            ),
+            email = metadata.valueOrNull("profileEmail")
+                ?: metadata.valueOrNull("email")
+                ?: user.email
+                ?: "user@algoviz.com",
+            phoneNumber = metadata.valueOrNull("phoneNumber")
+                ?: metadata.valueOrNull("phone")
+                ?: "",
+            avatarUrl = metadata.avatarFromMetadata(),
+            avatarColorIndex = metadata["avatarColorIndex"]?.jsonPrimitive?.intOrNull ?: 0
+        )
+    }
+
+    private fun rowToUserProfile(user: UserInfo, rowProfile: UserProfileRow): UserProfile {
+        val metadata = user.userMetadata
+        return UserProfile(
+            name = resolveDisplayName(user, preferred = rowProfile.name),
+            username = rowProfile.username.ifBlank {
+                metadata?.valueOrNull("username")
+                    ?: metadata?.valueOrNull("user_name")
+                    ?: metadata?.valueOrNull("preferred_username")
+                    ?: user.email?.substringBefore('@').orEmpty()
+            },
+            email = rowProfile.email.ifBlank { user.email ?: "user@algoviz.com" },
+            phoneNumber = rowProfile.phoneNo,
+            avatarUrl = normalizeAvatarUrl(rowProfile.avatarUrl),
+            avatarColorIndex = rowProfile.avatarColorIndex
+        )
+    }
+
     private fun extractStorageObjectPath(rawUrl: String?): String? {
         return UserIdentityUtils.extractStorageObjectPath(rawUrl, BuildConfig.SUPABASE_URL)
     }
@@ -102,9 +191,7 @@ class ProfileRemoteDataSource @Inject constructor(
 
         val metadataAvatar = supabaseClient.auth.currentUserOrNull()
             ?.userMetadata
-            ?.get("avatarUrl")
-            ?.jsonPrimitive
-            ?.content
+            ?.avatarFromMetadata()
 
         return extractStorageObjectPath(metadataAvatar)
     }
@@ -167,7 +254,6 @@ class ProfileRemoteDataSource @Inject constructor(
         return uploadProfileImageInternal(imageUri)
     }
 
-    @OptIn(SupabaseExperimental::class)
     private suspend fun uploadProfileImageInternal(imageUri: Uri): Result<String> {
         return try {
             Timber.d("Avatar Upload - Starting upload process")
@@ -258,16 +344,11 @@ class ProfileRemoteDataSource @Inject constructor(
                 put("updated_at", updatedAt)
             }
 
-            val existingRow = userProfilesTable.select {
-                filter {
-                    eq("user_id", uid)
-                }
-                limit(1)
-            }.decodeSingleOrNull<UserProfileRow>()
+            val existingRow = fetchUserProfileRow(uid)
 
-            if (existingRow == null) {
+            if (existingRow == null && userProfilesTableAvailable()) {
                 userProfilesTable.insert(payload)
-            } else {
+            } else if (existingRow != null) {
                 userProfilesTable.update(payload) {
                     filter {
                         eq("user_id", uid)
@@ -277,9 +358,35 @@ class ProfileRemoteDataSource @Inject constructor(
 
             Result.success(Unit)
         } catch (e: Exception) {
+            if (isMissingUserProfilesTable(e)) {
+                Timber.w(e, "user_profiles table missing; profile saved to auth metadata only")
+                return Result.success(Unit)
+            }
             Timber.e(e, "Failed to save user profile")
             Result.failure(e)
         }
+    }
+
+    private var userProfilesTableKnownMissing: Boolean? = null
+
+    private suspend fun userProfilesTableAvailable(): Boolean {
+        userProfilesTableKnownMissing?.let { return !it }
+
+        val available = runCatching {
+            userProfilesTable.select {
+                limit(1)
+            }.decodeList<UserProfileRow>()
+            true
+        }.getOrElse { error ->
+            if (isMissingUserProfilesTable(error)) {
+                false
+            } else {
+                throw error
+            }
+        }
+
+        userProfilesTableKnownMissing = !available
+        return available
     }
 
     suspend fun getUserProfile(): Result<UserProfile?> {
@@ -287,61 +394,13 @@ class ProfileRemoteDataSource @Inject constructor(
             val user = resolveAuthenticatedUser() ?: return Result.success(null)
             val uid = user.id
 
-            val rowProfile = userProfilesTable.select {
-                filter {
-                    eq("user_id", uid)
-                }
-                limit(1)
-            }.decodeSingleOrNull<UserProfileRow>()
-
+            val rowProfile = fetchUserProfileRow(uid)
             if (rowProfile != null) {
-                return Result.success(
-                    UserProfile(
-                        name = resolveDisplayName(user, preferred = rowProfile.name),
-                        username = rowProfile.username.ifBlank {
-                            user.userMetadata?.valueOrNull("username")
-                                ?: user.userMetadata?.valueOrNull("user_name")
-                                ?: user.userMetadata?.valueOrNull("preferred_username")
-                                ?: user.email?.substringBefore('@').orEmpty()
-                        },
-                        email = rowProfile.email.ifBlank { user.email ?: "user@algoviz.com" },
-                        phoneNumber = rowProfile.phoneNo,
-                        avatarUrl = normalizeAvatarUrl(rowProfile.avatarUrl),
-                        avatarColorIndex = rowProfile.avatarColorIndex
-                    )
-                )
+                return Result.success(rowToUserProfile(user, rowProfile))
             }
 
-            val metadata = user.userMetadata
-            if (metadata == null || metadata.isEmpty()) {
-                return Result.success(null)
-            }
-
-            val profile = UserProfile(
-                name = UserIdentityUtils.resolveDisplayName(
-                    email = user.email,
-                    metadataName = metadata.valueOrNull("name"),
-                    metadataFullName = metadata.valueOrNull("full_name"),
-                    metadataUserName = metadata.valueOrNull("user_name"),
-                    metadataPreferredUsername = metadata.valueOrNull("preferred_username"),
-                    metadataGivenName = metadata.valueOrNull("given_name")
-                ),
-                username = UserIdentityUtils.resolveUsername(
-                    email = user.email,
-                    metadataUsername = metadata.valueOrNull("username"),
-                    metadataUserName = metadata.valueOrNull("user_name"),
-                    metadataPreferredUsername = metadata.valueOrNull("preferred_username")
-                ),
-                email = metadata["profileEmail"]?.jsonPrimitive?.content?.ifBlank { user.email ?: "user@algoviz.com" }
-                    ?: metadata["email"]?.jsonPrimitive?.content?.ifBlank { user.email ?: "user@algoviz.com" }
-                    ?: user.email ?: "user@algoviz.com",
-                phoneNumber = metadata["phoneNumber"]?.jsonPrimitive?.content?.ifBlank { metadata["phone"]?.jsonPrimitive?.content ?: "" }
-                    ?: metadata["phone"]?.jsonPrimitive?.content ?: "",
-                avatarUrl = normalizeAvatarUrl(metadata["avatarUrl"]?.jsonPrimitive?.content),
-                avatarColorIndex = metadata["avatarColorIndex"]?.jsonPrimitive?.intOrNull ?: 0
-            )
-
-            Result.success(profile)
+            val metadataProfile = buildProfileFromAuthMetadata(user)
+            Result.success(metadataProfile)
         } catch (e: Exception) {
             Timber.e(e, "Failed to fetch user profile")
             Result.failure(e)

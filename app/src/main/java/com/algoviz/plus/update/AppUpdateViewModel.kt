@@ -14,8 +14,8 @@ import com.algoviz.plus.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.annotations.SupabaseExperimental
-import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +33,7 @@ import java.net.URL
 import kotlin.OptIn
 import javax.inject.Inject
 
-@OptIn(SupabaseExperimental::class)
+@OptIn(SupabaseExperimental::class, InternalSerializationApi::class)
 @HiltViewModel
 class AppUpdateViewModel @Inject constructor(
     private val supabaseClient: SupabaseClient
@@ -219,9 +219,18 @@ class AppUpdateViewModel @Inject constructor(
             return
         }
 
-        val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
-        val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
-        val localUri = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
+        val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+        val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+        val localUriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+        if (statusIndex < 0 || reasonIndex < 0 || localUriIndex < 0) {
+            cursor.close()
+            _updateState.value = UpdateState.DownloadFailed("Download record is incomplete.", lastUpdateInfo)
+            return
+        }
+
+        val status = cursor.getInt(statusIndex)
+        val reason = cursor.getInt(reasonIndex)
+        val localUri = cursor.getString(localUriIndex)
         cursor.close()
 
         if (status != DownloadManager.STATUS_SUCCESSFUL || localUri.isNullOrBlank()) {

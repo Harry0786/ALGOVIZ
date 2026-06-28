@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+@file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
 
 package com.algoviz.plus.core.network.model
 
