@@ -80,7 +80,7 @@ fun AppUpdateDialog(
                     context,
                     receiver,
                     IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                    ContextCompat.RECEIVER_EXPORTED
+                    ContextCompat.RECEIVER_NOT_EXPORTED
                 )
                 onDispose { context.unregisterReceiver(receiver) }
             }

@@ -9,6 +9,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserInfo
+import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.delay
@@ -163,6 +164,11 @@ class ProfileRemoteDataSource @Inject constructor(
     suspend fun getCurrentUserId(): String? = resolveAuthenticatedUser()?.id
 
     suspend fun uploadProfileImage(imageUri: Uri): Result<String> {
+        return uploadProfileImageInternal(imageUri)
+    }
+
+    @OptIn(SupabaseExperimental::class)
+    private suspend fun uploadProfileImageInternal(imageUri: Uri): Result<String> {
         return try {
             Timber.d("Avatar Upload - Starting upload process")
             val uid = getCurrentUserId().also {

@@ -38,6 +38,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
+@OptIn(SupabaseExperimental::class)
 class SupabaseStudyRoomDataSource @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {

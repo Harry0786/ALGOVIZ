@@ -1,2 +1,5 @@
-# Baseline Detekt rules
-# Run: ./gradlew detektBaseline to generate baseline.xml
+<?xml version="1.0" ?>
+<SmellBaseline>
+    <ManuallySuppressedIssues></ManuallySuppressedIssues>
+    <CurrentIssues></CurrentIssues>
+</SmellBaseline>

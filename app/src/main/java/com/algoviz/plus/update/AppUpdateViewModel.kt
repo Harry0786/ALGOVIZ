@@ -13,6 +13,8 @@ import androidx.lifecycle.viewModelScope
 import com.algoviz.plus.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.annotations.SupabaseExperimental
+import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -28,8 +30,10 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import kotlin.OptIn
 import javax.inject.Inject
 
+@OptIn(SupabaseExperimental::class)
 @HiltViewModel
 class AppUpdateViewModel @Inject constructor(
     private val supabaseClient: SupabaseClient

@@ -73,6 +73,27 @@ private const val ROUTE_VISUALIZATION_PATTERN = "$ROUTE_VISUALIZATION/{algorithm
 private const val DEFAULT_ALGORITHM_ID = "bubble_sort"
 private const val UNAUTH_REDIRECT_GRACE_MS = 1200L
 
+private fun isMainAppRoute(route: String?): Boolean {
+    if (route.isNullOrBlank()) return false
+    return route == ROUTE_MAIN ||
+        route == ROUTE_PROFILE ||
+        route == ROUTE_PROFILE_EDIT ||
+        route == ROUTE_LEARN ||
+        route == ROUTE_ALGORITHMS ||
+        route == ROUTE_STUDY_ROOMS ||
+        route == ROUTE_CREATE_ROOM ||
+        route.startsWith("$ROUTE_CHAT/") ||
+        route.startsWith("$ROUTE_VISUALIZATION/")
+}
+
+private fun isAuthRoute(route: String?): Boolean {
+    if (route.isNullOrBlank()) return false
+    return route == AuthRoute.AuthGraph.route ||
+        route == AuthRoute.Login.route ||
+        route == AuthRoute.Register.route ||
+        route == AuthRoute.ResetPassword.route
+}
+
 @Composable
 fun RootNavHost(
     isPasswordResetLink: Boolean = false
@@ -155,17 +176,9 @@ fun RootNavHost(
                         }
                         launchSingleTop = true
                     }
-                } else if (currentRoute !in setOf(
-                        ROUTE_MAIN,
-                        ROUTE_PROFILE,
-                        ROUTE_PROFILE_EDIT,
-                        ROUTE_LEARN,
-                        ROUTE_ALGORITHMS,
-                        ROUTE_STUDY_ROOMS,
-                        ROUTE_CREATE_ROOM,
-                        ROUTE_CHAT_PATTERN,
-                        ROUTE_VISUALIZATION_PATTERN
-                    )) {
+                } else if (currentRoute == AuthRoute.ResetPassword.route) {
+                    // Stay on password reset until the user finishes the flow.
+                } else if (isAuthRoute(currentRoute) || !isMainAppRoute(currentRoute)) {
                     navController.navigate(ROUTE_MAIN) {
                         popUpTo(AuthRoute.AuthGraph.route) {
                             inclusive = true
@@ -175,17 +188,7 @@ fun RootNavHost(
                 }
             }
             is AuthUiState.Unauthenticated -> {
-                if (currentRoute in setOf(
-                        ROUTE_MAIN,
-                        ROUTE_PROFILE,
-                        ROUTE_PROFILE_EDIT,
-                        ROUTE_LEARN,
-                        ROUTE_ALGORITHMS,
-                        ROUTE_STUDY_ROOMS,
-                        ROUTE_CREATE_ROOM,
-                        ROUTE_CHAT_PATTERN,
-                        ROUTE_VISUALIZATION_PATTERN
-                    )) {
+                if (isMainAppRoute(currentRoute)) {
                     // Avoid tearing down protected destinations on transient auth-state blips.
                     delay(UNAUTH_REDIRECT_GRACE_MS)
                     if (latestAuthState !is AuthUiState.Unauthenticated) {
@@ -361,8 +364,12 @@ fun RootNavHost(
             InAppNotificationHost(
                 modifier = Modifier.fillMaxSize(),
                 onOpenChatRoom = { roomId ->
+                    if (currentRoute == "$ROUTE_CHAT/$roomId") return@InAppNotificationHost
                     navController.navigate("$ROUTE_CHAT/$roomId") {
                         launchSingleTop = true
+                        if (isMainAppRoute(currentRoute)) {
+                            restoreState = true
+                        }
                     }
                 }
             )
@@ -401,6 +408,9 @@ private fun SplashScreen() {
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val splashWidth = maxWidth
+        val splashHeight = maxHeight
+
         Image(
             painter = painterResource(id = com.algoviz.plus.R.drawable.sp1),
             contentDescription = "Splash Screen Frame 1",
@@ -430,9 +440,9 @@ private fun SplashScreen() {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = maxHeight * 0.615f)
-                    .width(maxWidth * 0.105f)
-                    .height(maxHeight * 0.0048f)
+                    .offset(y = splashHeight * 0.615f)
+                    .width(splashWidth * 0.105f)
+                    .height(splashHeight * 0.0048f)
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(

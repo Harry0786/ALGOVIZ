@@ -633,8 +633,12 @@ fun HomeScreen(
 
     Scaffold(
         containerColor = Color.Transparent
-    ) { _ ->
-        Box(modifier = Modifier.fillMaxSize()) {
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             Image(
                 painter = painterResource(id = com.algoviz.plus.R.drawable.bg1),
                 contentDescription = null,
